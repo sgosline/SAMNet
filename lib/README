@@ -1,0 +1,12 @@
+This directory contains mapping files required to convert various identifiers
+
+STRING interactome
+
+Mouse STRING v9.0 to gene name: 10090protein.aliases.v9.0_geneName.pkl
+Yeast STRING v9.0 to gene name: 4932protein.aliases.v9.0_geneName.pkl
+Human STRING v9.0 to gene name: 9606protein.aliases.v9.0_geneName.pkl
+
+PSIQUIC interactome
+
+Human PSIQUIC to mouse gene name: mouse_genename_to_9606mitabiref.pkl
+Human PSIQUIC to human gene name: 9606mitab.01192011.uniq_miscore-localirefindex3-20110831.geneMapping.pkl
