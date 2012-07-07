@@ -20,7 +20,7 @@ import re,pickle,os
 from collections import defaultdict
 
 ##UPDATE THIS:
-id_directory='/nfs/vendata/sgosline/responseNet/'
+id_directory='../lib/'
 
 #write sif file
 #removed chosen phens and chose tra file, one less to worry about

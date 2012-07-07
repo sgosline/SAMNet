@@ -1,8 +1,7 @@
 SAMNet
 
 ------------------------------------------------------------------------------------------------
-Simultaneous Analysis of Multiple Networks (SAMNet) is a tool designed to
-identify key proteins undetected by high throughput biochemical experiments.  
+Simultaneous Analysis of Multiple Networks (SAMNet) is a tool designed to identify key proteins undetected by high throughput biochemical experiments.  
 ------------------------------------------------------------------------------------------------
 Contact: Sara JC Gosline sgosline@mit.edu
 ------------------------------------------------------------------------------------------------
@@ -18,9 +17,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 System Requirements:
 ------------------------------------------------------------------------------------------------
 1- Python 2.5.2 or higher: http://python.org
+
 2- Networkx 1.7 or higher: http://networkx.lanl.gov
+
 3- NumPy: http://numpy.scipy.org
+
 4- AMPL: http://www.ampl.com/DOWNLOADS/index.html
+
 5- cplexamp or some other solver that will work with AMPL: http://www.ampl.com/CPLEX/#academic
 
 
@@ -29,6 +32,7 @@ Getting started:
 ------------------------------------------------------------------------------------------------
 
 1- Download code from source repository
+
 2- 
 
 

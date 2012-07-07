@@ -14,8 +14,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 '''
 
-#aliases_file='/nfs/vendata/sgosline/fibronectin/2011-04-18/protein.aliases.v8.3.txt'
-#alias9_file='/net/ventral/nfs/data/datasets/interactomes/STRING/v9.0/protein.aliases.v9.0.txt'
 
 import sys,os,csv,re,pickle
 import types
@@ -37,11 +35,11 @@ def main():
 
     if opts.map_file=='':
         if opts.taxa=='9606':
-            geneDict=pickle.load(open('9606protein.aliases.v9.0_geneName.pkl','r'))
+            geneDict=pickle.load(open('../lib/9606protein.aliases.v9.0_geneName.pkl','r'))
         elif opts.taxa=='10090':
-            geneDict=pickle.load(open('10090protein.aliases.v9.0_geneName.pkl','r'))   
+            geneDict=pickle.load(open('../lib/10090protein.aliases.v9.0_geneName.pkl','r'))   
         else:
-            geneDict=pickle.load(open('4932protein.aliases.v9.0_geneName.pkl','r'))   
+            geneDict=pickle.load(open('../lib/4932protein.aliases.v9.0_geneName.pkl','r'))   
     else:
         geneDict=pickle.load(open(opts.map_file,'r'))
     
@@ -183,68 +181,7 @@ def parseTabFileFromStringToGeneName(sif_file,out_file,geneDict=''):
             new_data[pep]=new_arr
     for k in new_data.keys():
         new_file.writerow([k]+new_data[k])
-#        new_file.writerow(arr)
 
-####MOVED FROM parseStringIdentifiers file
-
-
-def createStringToSymbolPkl(newfile,taxa_id,outputdir='./'):
-
-    if taxa_id=='9606':
-        symbol_string=['BioMart_HUGO','Ensembl_HUGO']
-    else:
-        symbol_string=['BLAST_UniProt_GN','Ensembl_UniProt_GN']
-    stringSymbolDict={}
-    for line in open(newfile,'r').readlines()[1:]:
-#        print line
-        (ti,string_id,alias,alias_type)=re.split('\t',line.strip())
-        all_types=re.split(' ',alias_type)
-        if ti==taxa_id and len(set.intersection(set(symbol_string),set(all_types)))>0:
-            #lets add both directions
-            #first string_id to alias
-            if taxa_id!='4932': ##we don't want yeast taxa id right now
-                string_id=taxa_id+'.'+string_id
-            if string_id in stringSymbolDict.keys():
-                stringSymbolDict[string_id].append(alias)
-                print string_id,'has multiple aliases:',stringSymbolDict[string_id]
-            else:
-                stringSymbolDict[string_id]=[alias]
-            #then alias to string id
-            if alias in stringSymbolDict.keys():
-                stringSymbolDict[alias].append(string_id)
-                print alias,'has multiple string ids:',stringSymbolDict[alias]
-            else:
-                stringSymbolDict[alias]=[string_id]
-
-    pickle.dump(stringSymbolDict,open(outputdir+taxa_id+re.sub('.txt','_geneName.pkl',os.path.basename(newfile)),'w'))
-
-    return stringSymbolDict
-
-def createStringToHugoPkl(newfile,taxa_id,outputdir='./'):
-
-    symbol_string=['BioMart_HUGO','Ensembl_HUGO']
-    stringSymbolDict={}
-    for line in open(newfile,'r').readlines()[1:]:
-        (ti,string_id,alias,alias_type)=re.split('\t',line.strip())
-        all_types=re.split(' ',alias_type)
-        if ti==taxa_id and len(set.intersection(set(symbol_string),set(all_types)))>0:
-            #lets add both directions
-            #first string_id to alias
-            string_id=taxa_id+'.'+string_id
-            if string_id in stringSymbolDict.keys():
-                stringSymbolDict[string_id].append(alias)
-                print string_id,'has multiple HUGO symbol:',stringSymbolDict[string_id]
-            else:
-                stringSymbolDict[string_id]=[alias]
-            #then alias to string id
-            if alias in stringSymbolDict.keys():
-                stringSymbolDict[alias].append(string_id)
-                print alias,'has multiple string ids:',stringSymbolDict[alias]
-            else:
-                stringSymbolDict[alias]=[string_id]
-
-    pickle.dump(stringSymbolDict,open(outputdir+taxa_id+re.sub('.txt','_hugoSymbol.pkl',os.path.basename(newfile)),'w'))
-    return stringSymbolDict
     
 
 

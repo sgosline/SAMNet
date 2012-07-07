@@ -65,7 +65,7 @@ def main():
     ################################################################
     
 
-    ##GENERAL PARAMETERS for responsenet
+    ##GENERAL PARAMETERS for SAMNet
     parser.add_option("--output", type="string", dest="outputfile", help="Output file name. Directory + output file name without any extension")
     parser.add_option('--doMCF',action='store_true',dest='mcf',help='Set this option to run multiple sources/sinks as multiple commodities.DEFAULT is False',default=False)
 
@@ -81,6 +81,7 @@ def main():
     parser.add_option("--cap", type="float", default=0.99, dest="cap", help="OPTIONAL:Value for the capping of weights. Default is 0.99")
 
     parser.add_option("--solver", type="string", dest="solver", help="OPTIONAL: Solver used to generate the flow solution. Write exact name of the solver as it should appear in an ampl command. Default is loqo", default="cplexamp")
+    
     parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names or \'humaniref\' to use human iref identifiers or \'mouseiref\' to use mouse genes mapped to human identifiers.",default='')
 
     
@@ -92,21 +93,11 @@ def main():
 
     parser.add_option('--de_file', dest='de_file', type='string', default='', help='OPTINAL: tab delimited file containing differential expression for all types of genes (whether mRNAs,or other proteins). Could be the output of a genome-wide mRNA expression experiment. First column is gene name, and 2nd column is fold change in expression (or log fold change, or any other measure of the change in expression. Gene names should be same as in the output file, before identifier matching.')
 
-    parser.add_option('--de_cap',dest='de_cap',type='string',default='sink',help='OPTIONAL: determines how to use differential expression as capacities.  DEFAULT setting is \'sink\' to use as only capacities from mRNA to sink.  When set to \'source\' responseNet will use differential expression capacities on source to genetic hit data, and if set to \'all\' responseNet will use differential expression capacities on all nodes')
+    parser.add_option('--de_cap',dest='de_cap',type='string',default='sink',help='OPTIONAL: determines how to use differential expression as capacities.  DEFAULT setting is \'sink\' to use as only capacities from mRNA to sink.  When set to \'source\' SAMNet will use differential expression capacities on source to genetic hit data, and if set to \'all\' SAMNet will use differential expression capacities on all nodes')
 
     (options, args) = parser.parse_args()
 
-    #first get rid of deprecated arguments
-    if options.phenfile!='':
-        print '--phen is DEPRECATED, please use --proteinWeights'
-        options.prot_weights=options.phenfile
-        
-    if options.foldtra!='':
-        print '--foldtraorp is DEPRECATED please use --foldchangeorp'
-        options.foldchange=options.foldtra
-
-
-    print 'Running ResponseNet...'
+    print 'Running SAMNet...'
 
     ##format an options string to broadcast specifics as we process the input
 
@@ -224,7 +215,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
 #    print de_cap
     
     '''
-    Ridiculously annoying function designed so responseNet can also be run externally with pre-processed data supplied
+    Ridiculously annoying function designed so SAMNet can also be run externally with pre-processed data supplied
     PPI_with_weights: networkx digraph object with string identifiers, already pre-filtered for expressed proteins
     indirect_weights: dictionary of dictionaries of protein indentifiers as keys with values being their weights
     direct_weights: dictionary of dictionaries (empty if only indirects are used) containing gene names as keys with values as their weights
@@ -242,7 +233,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     diff_ex_vals: dictionary of differential expression values
     de_cap: set to 'source','sink' (default) or 'all' if you want to add diff_ex_vals-based capacities
 
-    Note on identifiers: It is important that all identifiers match.  ResponseNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
+    Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
     '''
     '''
     if doMCF:
@@ -333,15 +324,6 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                     mrna_weights[treat][x]=0.0
         print "how many genes are linked to the TFs in the transcriptional network"
         print len(trares)
-    # else:
-    #     for treat in mrna_weights.keys():
-    #         for x in mrna_weights[treat].keys():
-    #             if x in PPI_with_weights.nodes():
-    #                 trares.append(x)
-    #             else:
-    #                 mrna_weights[treat][x]=0.0
-    #     print 'How many end nodes are linked to PPI'
-
 
     if(debug):
         count_tra=0
@@ -447,7 +429,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
             
         if doMCF:
             ##first writing single commodity files
-            print 'Writing single commodity version of responseNet files'
+            print 'Writing single commodity version of SAMNet files'
             if makeCombined:
                 for treat in indirect_weights.keys():
                     print 'Writing '+treat+' files'
@@ -457,7 +439,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                     sinks.append(treat+'_sink')
                     single_comms.append(tmp_output)
             ##now run multi commodity
-            print "Writing MCF version of responseNet files"
+            print "Writing MCF version of SAMNet files"
             output+='multiComm'
             wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         else:
