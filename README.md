@@ -33,7 +33,27 @@ Getting started:
 
 1- Download code from source repository
 
-2- 
+2- Install ampl, cplexamp (or some other solver) and necessary python libraries
+
+3- Investigate SAMNet run on the two datasets from Gosline et al. 2012.  The
+yeast metal dataset from Jin et al. can be found in the ./data/yeast_metal
+subdirectory.  The EMT dataset from Thomson et al. can be found in the
+./data/human_emt data
+
+4- Either run new results, or explore results included using the tools in the
+src/cytoscape directory
+
+5- Also investigate GO enrichment tools in the src/go_enrichment directory.
+
+6- To run on your own data, you'll need to parse it into the appropriate file formats:
+   -protein weight files, formated like the *.phen files in the sample data
+   directories, 1 for each commodity
+   -mRNA expressiond ata, formated like the *.txt files in the sample data
+   directories
+   -a protein-protein interaction network in the networkx format, or you can use
+   one of the ones provided
+   -a protein-DNA interaction network, in the format of the *.tfa files provided
+   -for more details type python src/samnet.py --h
 
 
 

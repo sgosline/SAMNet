@@ -1,0 +1,6 @@
+This directory contains code and results used in the Gosline et al. 2012
+manuscript
+
+yeast_metal: Yeast transition metal data and analysis from Jin et al.
+human_emt: Human EMT induced data and analysis from Thomson et al.
+

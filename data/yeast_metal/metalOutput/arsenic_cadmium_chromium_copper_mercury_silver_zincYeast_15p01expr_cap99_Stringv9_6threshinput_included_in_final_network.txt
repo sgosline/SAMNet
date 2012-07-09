@@ -1,0 +1,3 @@
+141 Protein Inputs present in interactome 
+115 Indirect inputs present in interactome 
+944 Transcriptional mRNA nodes linked to TFs in interactome 

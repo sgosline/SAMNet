@@ -24,22 +24,27 @@ def main():
     handles various types of identifier matching
     '''
     parser=OptionParser()
-    parser.add_option('--mappingFile',type='string',dest='map_file',default='',help='Mapping PKL file containing species-specific String identifier matching file. Defaults to mouse mapping.')
+    parser.add_option('--mappingFile',type='string',dest='map_file',default='',help='Mapping PKL file containing species-specific String identifier matching file. Defaults to human mapping.')
     parser.add_option('--aliasFile',type='string',dest='alias_file',default='',help='String protein alias file to be converted to pkl')
     parser.add_option("--outputdir",type='string',dest='output_dir',default='./',help='Directory to place pkl output file if aliasFile option is used')
     parser.add_option('--taxaId',type='string',dest='taxa',default='9606',help='Taxa id for species in question. DEFAULT is 9606 (human)')
 
- 
+    fpath=os.path.dirname(os.path.abspath( __file__ ))
+    print fpath
+
+    libpath=re.sub('src','lib',fpath)
+    print libpath
+    
     (opts,args)=parser.parse_args()
     allfiles=args
 
     if opts.map_file=='':
         if opts.taxa=='9606':
-            geneDict=pickle.load(open('../lib/9606protein.aliases.v9.0_geneName.pkl','r'))
+            geneDict=pickle.load(open(libpath+'/9606protein.aliases.v9.0_geneName.pkl','r'))
         elif opts.taxa=='10090':
-            geneDict=pickle.load(open('../lib/10090protein.aliases.v9.0_geneName.pkl','r'))   
+            geneDict=pickle.load(open(libpath+'/10090protein.aliases.v9.0_geneName.pkl','r'))   
         else:
-            geneDict=pickle.load(open('../lib/4932protein.aliases.v9.0_geneName.pkl','r'))   
+            geneDict=pickle.load(open(libpath+'/4932protein.aliases.v9.0_geneName.pkl','r'))   
     else:
         geneDict=pickle.load(open(opts.map_file,'r'))
     

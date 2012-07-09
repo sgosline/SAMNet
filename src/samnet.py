@@ -18,14 +18,18 @@ import os,re
 import networkx
 from optparse import OptionParser
 import time
+from collections import defaultdict
 
-#This file ONLY parses the command line input and executes the ampl command.  
-import parse_input_samnet as parseIn##handles input and file parsing and filtering
+
+#This file parses the command line input, executes the ampl command and combines multiple commodities if MCF is not used
+
+#these modules do the rest:
+import parseinput_samnet as parseIn##handles input and file parsing and filtering
 import writefiles_samnet as wf #handles writing files to be run by ampl
 import post_samnet as post ##handles post-processing of ampl results
-import tfnetwork_samnet #handles transcriptional data
+import tfnetwork_samnet as tfNetwork #handles transcriptional data
 
-from collections import defaultdict
+
 
 
 def main():
@@ -202,10 +206,10 @@ def main():
 
 
     diff_ex_dict={}
-    if options.de_file!='':
-        for row in open(options.de_file,'r').readlines():
-            arr=row.strip().split('\t')
-            diff_ex_dict[arr[0]]=float(arr[1])
+#   if opts.de_file!='':
+#        for row in open(opts.de_file,'r').readlines():
+#            arr=row.strip().split('\t')
+#            diff_ex_dict[arr[0]]=float(arr[1])
 #    print final_weights
     
         
@@ -231,7 +235,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     rawTf: name of file used to derive raw TF weights
     noMrna: string set to 'True' if mRNA is replaced with TFs linked to sink
     diff_ex_vals: dictionary of differential expression values
-    de_cap: set to 'source','sink' (default) or 'all' if you want to add diff_ex_vals-based capacities
+    de_cap: set to 'source' or 'all' if you want to add diff_ex_vals-based capacities
 
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
     '''
@@ -418,7 +422,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                          PPI_with_weights.add_edge(tf, mrna_node,{'weight':weight})
                          
         ##write files, then execute
-        makeCombined=True ##remove this later
+#        makeCombined=True ##remove this later
         
         if len(mrna_weights)>1:
             target_cap=True

@@ -1,0 +1,1 @@
+112 Phenotypic included in final network940 Indirect mRNA included in final network0 Direct mRNA included in final network141 TFs included in final network
