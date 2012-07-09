@@ -1,0 +1,17 @@
+These are optional helper files designed to help run cytoscape with various output files of SAMNet
+
+Requirements:
+1- Python 2.5.2 or higher
+2- Cytoscape 2.8.0 or higher
+
+To run: 
+python runCytoscape.py [samnet file prefix] --isMCF
+
+Examples from Gosline et al.:
+
+python runCytoscape.py ../../data/yeast_metal/metalOutput/arsenic_cadmium_chromium_copper_mercury_silver_zincYeast_15p01expr_cap99_Stringv9_6threshmultiComm --isMCF
+
+
+python  runCytoscape.py ../../data/human_emt/emtOutput/fixed_snail_tgfb_zeb1_network_gamma14_cap_99_Psiquic_5threshmultiComm --isMCF
+
+Then once loaded, select the 'SAMNet' visual style to highlight the proper edges.
