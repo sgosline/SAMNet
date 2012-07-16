@@ -475,10 +475,6 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                 if updateIds!='':
                     noa='_symbol.noa'
                 
-                if not doMCF and debug:##TODO: fix this so it works either way!
-                    evalexpr.exprBoxPlotByType(open(basename+'_node_type'+noa,'r').readlines(),mrna_weights,basename)
-                #evalexpr.rankedListOfGenes(open(basename+'_node_type'+noa,'r').readlines(),open(basename+'_node_flow'+noa,'r').readlines(),mrna_weights,PPI_with_weights,basename,doMCF)
-                    evalexpr.rankedListOfGenes(open(basename+'_node_type'+noa,'r').readlines(),node_flow=node_flow,comm_flow=comm_flow,diffex=mrna_weights,ppi_weights=PPI_with_weights,output=basename)
 
 
         if not debug:
