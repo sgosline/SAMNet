@@ -1,0 +1,1 @@
+nodecharts pie attributelist="arsenicsig,cadmiumsig,chromiumsig,coppersig,mercurysig,silversig,zincsig" nodelist="all" labellist=".,.,.,.,.,.,." colorlist="#999900,#336600,#006666,#993300,#CC0099,#666666,#330033"

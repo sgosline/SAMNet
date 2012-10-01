@@ -1,0 +1,1 @@
+nodecharts pie attributelist="fixedsig,snailsig,zeb1sig,tgfbsig" nodelist="all" labellist=".,.,.,." colorlist="#6B6B6B,#999900,#990000,#006699"
