@@ -15,3 +15,8 @@ python runCytoscape.py ../../data/yeast_metal/metalOutput/arsenic_cadmium_chromi
 python  runCytoscape.py ../../data/human_emt/emtOutput/fixed_snail_tgfb_zeb1_network_gamma14_cap_99_Psiquic_5threshmultiComm --isMCF
 
 Then once loaded, select the 'SAMNet' visual style to highlight the proper edges.
+
+
+Command tool plugin is required for node charts:
+http://www.cgl.ucsf.edu/cytoscape/utilities/index.html
+
