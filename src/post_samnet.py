@@ -92,11 +92,15 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
         protWeightsPicked=[]
     '''
     
-
+    phens=set()
+    tfs=set()
+    mrnas=set()
+    dirmrnas=set()
+    
     if(node_flow==-1):
-        return
+        return phens,tfs,mrnas
 
-    tfs,dirmrna,indirmrna,phens,flows=[],[],[],[],[]
+   # tfs,dirmrna,indirmrna,phens,flows=[],[],[],[],[]
 
 #    if de_file!=None:
 #        dExp_file=open(de_file,'r')
@@ -111,6 +115,10 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             #add differential expression
         attrfile4.write(gene+' = '+str(de)+'\n')
 
+    ##keep set to properly annotate nodes that belong to multiple categories
+
+    #indirmrna=set()
+    flows=set()
     for line in lines:
         fields = line.split('\t')
         prot1 = fields[0].strip()
@@ -123,33 +131,30 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             comm=fields[2].strip()
         ##first check if prot1 is a source or multi source
         ##label this as pm interaction indicating non pp or pd
-            
 
-        #print prot1,prot2
+        #first evaluate phenotypic hits
         if (prot1==source or 'treatment' in prot1) and prot2!=sink:
-
             tprot1=re.sub('_treatment','',prot1)
-            prot2=re.sub('mrna','',prot2)
-            tprot2=re.sub('_treatment','',prot2)
+            tprot2=re.sub('mrna','',prot2)
+  #          tprot2=re.sub('_treatment','',prot2)
             siffile1.write(tprot1+'\t'+'pm'+'\t'+tprot2+'\n')
             siffile3.write(tprot1+'\t'+'pm'+'\t'+tprot2+'\n')
             siffile4.write(tprot1+'\t'+comm+'\t'+tprot2+'\n')
             attrfile1.write(tprot1+' (pm) '+tprot2+' = '+flow+'\n')
             attrfile5.write(tprot1+' ('+comm+') '+tprot2+' = '+flow+'\n')
             #if the phenotypic/mirna hit is indeed an mrna, make it a diamond
-            if 'mrna' in prot2 and prot2 not in indirmrna:
-                indirmrna.append(tprot2)
-                attrfile2.write(tprot2+' = '+'mrna'+'\n')
+            if 'mrna' in prot2 and prot2 not in mrnas:
+                mrnas.add(tprot2)
+                #attrfile2.write(tprot2+' = '+'mrna'+'\n')
                 #protein mrna
                 attrfile6.write(tprot1+' ('+comm+') '+tprot2+' = pm\n')
             #otherwise, make it a square
-            elif tprot2 not in phens and tprot2 not in indirmrna:
-                phens.append(tprot2)
-                attrfile2.write(tprot2+' = '+'phenotypic'+'\n')
+#            elif tprot2 not in phens and tprot2 not in mrnas:
+            phens.add(tprot2)
 
-            if tprot2 not in flows and prot2 in node_flow.keys():
-                attrfile3.write(tprot2+' = '+str(node_flow[prot2])+'\n')
-                flows.append(tprot2)
+            if tprot2 not in flows and tprot2 in node_flow.keys():
+                attrfile3.write(tprot2+' = '+str(node_flow[tprot2])+'\n')
+                flows.add(tprot2)
 
         #if edge is within proteins, write protein interaction append flow info
         elif prot2!=sink and 'mrna' not in prot2 and 'mrna' not in prot1:
@@ -161,11 +166,12 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             attrfile6.write(prot1+' ('+comm+') '+prot2+' = pp\n')
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
-                flows.append(prot2)
+                flows.add(prot2)
 
         #if edge goes from protein (or direct) to mrna, label as mrna, add flow info
         elif 'mrna' in prot1:
             prot1=re.sub('mrna','',prot1)
+            mrnas.add(prot1)
             prot2=re.sub('_treatment','',prot2)
             siffile2.write(prot1+'\t'+'pm'+'\t'+prot2+'\n')
             siffile3.write(prot1+'\t'+'pm'+'\t'+prot2+'\n')
@@ -175,6 +181,9 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             attrfile6.write(prot1+' ('+comm+') '+prot2+' = pm\n')
         elif 'mrna' in prot2:
             prot2=re.sub('mrna','',prot2) ##this could induce loops
+
+            mrnas.add(prot2)
+            tfs.add(prot1)            
             siffile2.write(prot1+'\t'+'pd'+'\t'+prot2+'\n')
             siffile3.write(prot1+'\t'+'pd'+'\t'+prot2+'\n')
             siffile4.write(prot1+'\t'+comm+'\t'+prot2+'\n')
@@ -183,39 +192,42 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             attrfile5.write(prot1+' ('+comm+') '+prot2+' = '+flow+'\n')
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
-                flows.append(prot2)
-            if 'direct' in prot1 and prot2 not in dirmrna:
-                dirmrna.append(prot2)
-                attrfile2.write(prot2+' = '+'direct mrna'+'\n')
-                
-            elif prot2 not in indirmrna:
-                indirmrna.append(prot2)
-                attrfile2.write(prot2+' = '+'mrna'+'\n')
-
-            if prot1 not in tfs and 'direct' not in prot1:
-                attrfile2.write(prot1+' = '+'transcriptionfactor'+'\n')
-                tfs.append(prot1)
+                flows.add(prot2)
                 
 
-        elif prot2==sink:
-            if 'mrna' not in prot1 and prot1 not in tfs:
-                tfs.append(prot1)
-                attrfile2.write(prot1+' = '+'transcriptionfactor'+'\n')
+      #  elif prot2==sink and 'treatment' not in prot1::
+      #      if 'mrna' not in prot1:# and prot1 not in tfs:
+      #          tfs.add(prot1)
+                #attrfile2.write(prot1+' = '+'transcriptionfactor'+'\n')
 
+    #now go through all proteins in all sets and add attribute
+    allprots=set()
+    allprots.update(phens)
+    allprots.update(mrnas)
+    allprots.update(tfs)
+    for prot in allprots:
+        attrstring=prot+' = '
+        if prot in tfs:
+            attrstring+='transcriptionfactor'
+        if prot in mrnas:
+            attrstring+='mrna'
+        if prot in phens:
+            attrstring+='phenotypic'
+        attrfile2.write(attrstring+'\n')
 
     
     if (debug):
         print 'writing to details'
         network_output_details=open(wholename+'input_included_in_final_network2.txt','w')
         network_output_details.write(str(len(phens))+' Phenotypic included in final network')
-        network_output_details.write(str(len(indirmrna))+' Indirect mRNA included in final network')
-        network_output_details.write(str(len(dirmrna))+' Direct mRNA included in final network')
+        network_output_details.write(str(len(mrnas))+' Indirect mRNA included in final network')
+#        network_output_details.write(str(len(dirmrna))+' Direct mRNA included in final network')
         network_output_details.write(str(len(tfs))+' TFs included in final network')
 
         '''
         network_output_details.write(str(len(protWeightsPicked))+' Total protWeights included in final network (also includes those not connected to source)')
         '''  
-        
+    return phens,tfs,mrnas
             
 
 
@@ -276,7 +288,7 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
         #visualize
     if total==0.0:
         return total,node_flow,comm_flow
-    write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
+    phens,tfs,mrnas=write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
             ##MODIFIED by SGOSLINE: added this to do identifer matching for the sif files
     
     if(species_name.lower==''):
@@ -313,4 +325,4 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
         identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_node_flow.noa','r'),output_file+'_node_flow_symbol.noa',idfile,False)
         if len(de_file)>0:
             identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_DiffExpr.noa','r'),output_file+'_DiffExpr.noa',idfile,False)
-    return total,node_flow,comm_flow
+    return total,node_flow,comm_flow,phens,tfs,mrnas

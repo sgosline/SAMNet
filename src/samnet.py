@@ -84,7 +84,7 @@ def main():
     parser.add_option("--gamma", type="string", default='8', dest="gamma", help="OPTIONAL:Integer number for gamma. Default is 8")
     parser.add_option("--cap", type="float", default=0.99, dest="cap", help="OPTIONAL:Value for the capping of weights. Default is 0.99")
 
-    parser.add_option("--solver", type="string", dest="solver", help="OPTIONAL: Solver used to generate the flow solution. Write exact name of the solver as it should appear in an ampl command. Default is loqo", default="cplexamp")
+    parser.add_option("--solver", type="string", dest="solver", help="OPTIONAL: Solver used to generate the flow solution. Write exact name of the solver as it should appear in an ampl command. Default is cplexamp", default="cplexamp")
     
     parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names or \'humaniref\' to use human iref identifiers or \'mouseiref\' to use mouse genes mapped to human identifiers.",default='')
 
@@ -221,10 +221,10 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     '''
     Ridiculously annoying function designed so SAMNet can also be run externally with pre-processed data supplied
     PPI_with_weights: networkx digraph object with string identifiers, already pre-filtered for expressed proteins
-    indirect_weights: dictionary of dictionaries of protein indentifiers as keys with values being their weights
-    direct_weights: dictionary of dictionaries (empty if only indirects are used) containing gene names as keys with values as their weights
+    indirect_weights**: dictionary of dictionaries of protein indentifiers as keys with values being their weights
+    direct_weights:** dictionary of dictionaries (empty if only indirects are used) containing gene names as keys with values as their weights
     graph_tf: networkx digraph of transcriptional network with weights on the edges
-    mrna_weights: dictionary of mRNA weights to sink, or tf weights if raw_tf_file was supplied
+    mrna_weights**: dictionary of mRNA weights to sink, or tf weights if raw_tf_file was supplied
     output: outputstring to be used for files
     updateIds: species with which to update the protein network
 #    expr: name of expression file for post-processing
@@ -232,11 +232,12 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     gamma: default gamma
     solver: default solver
     debug: set to True for extra info
-    rawTf: name of file used to derive raw TF weights
+    rawTf: name of file used to derive raw TF weights, only used to explain tf-connections..
     noMrna: string set to 'True' if mRNA is replaced with TFs linked to sink
     diff_ex_vals: dictionary of differential expression values
     de_cap: set to 'source' or 'all' if you want to add diff_ex_vals-based capacities
-
+    ** -> These dictionaries are modified by the method, so be sure to pass in copies.
+nn    
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
     '''
     '''
@@ -265,12 +266,11 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                     indirect_weights[treat][x]=0.0##zero this weight so it's not tallied..
                     if len(diff_ex_vals)>0 and treat in diff_ex_vals.keys():
                         diff_ex_vals[treat][x]=0.0
-    print "how many genes from protein hits (e.g. phenotypic or miRNA indirect targets) are in interactome:"
+    print "how many proteinWeights are in interactome:"
     print len(phenres)
+    
     if (debug):
         network_inclusion_details=open(output+'input_included_in_final_network.txt','w')
-    
-    if(debug):
         count_phen=0
         count_indirect=0
         phensInInteractome=open(output+'proteinWeightsInInteractome.txt','w')
@@ -298,21 +298,23 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
                 else:
                     direct_weights[treat][x]=0.0##zero it out so it's not totalled
 
-        print "how many direct (e.g. miRNA) targets are in network"
+        print "how many direct (e.g. miRNA) weights are in network"
         print len(directres)
 
-    #the transcriptional data to be included in the graph - only the mRNA which is contained in the transcriptional network
+    ##the transcriptional data to be included in the graph -
+    ##only the mRNA which is contained in the transcriptional network
     trares = []
-    if noMrna=='True' or rawTf!='':
-        for treat in mrna_weights.keys():###This will faill!!!!!
+    if noMrna=='True' or rawTf!='':  ##theis just means that mRNA weights are actually tf weights
+        for treat in mrna_weights.keys():
             for x in mrna_weights[treat].keys():
                 if PPI_with_weights.has_node(x):
                     if x not in trares:
                         trares.append(x)
-                elif PPI_with_weights.has_node(re.sub('mrna','',x)):
-                    PPI_with_weights.add_edge(re.sub('mrna','',x),x,weight=0.00001)
-                    if x not in trares:
-                        trares.append(x)
+                ##commented this on 2012-12-06 -- 
+                #elif PPI_with_weights.has_node(re.sub('mrna','',x)):
+                #    PPI_with_weights.add_edge(re.sub('mrna','',x),x,weight=0.00001)
+                #    if x not in trares:
+                #        trares.append(x)
                 else:
                     mrna_weights[treat][x]==0.0
         print "how many selected transcription factors are linked to the protein interaction network"
@@ -345,7 +347,8 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
 
     #ADD SOURCE AND SINK TO PPI
     
-    #include S and T, the transcriptional and the genetic data into the interactome
+    #include S1 and T1 (renamed from S and T to avoid conflicts),
+    #the transcriptional and the genetic data into the interactome
     #this operation is possible only if the transcriptional and the genetic sets are not empty
     if (len(trares)>0) and (len(phenres)>0):
         #connect pehnotypic data (proteins) to source and add the corresponding weights
@@ -355,43 +358,43 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
             for treat in indirect_weights.keys():
                 print treat
                 treat_weights[treat]=1.0
-        else:
-            print treat_weights
+        #else:
+        #    print treat_weights
 
+        source='S1'
+        sink='T1'
+        
         #connect transcriptional data (mRNA) to the sink and add the corresponding weights
         for treat in mrna_weights.keys():
-            PPI_with_weights.add_edge(treat+'_sink','T',{'weight':treat_weights[treat]})
+            PPI_with_weights.add_edge(treat+'_sink',sink,{'weight':treat_weights[treat]})
             for mrna_node in mrna_weights[treat].keys():
                 weight = mrna_weights[treat][mrna_node]
 #                print treat, mrna_node,weight
                 if weight!=0.0:##this means that it is connected to the TF network
                     PPI_with_weights.add_edge(mrna_node,treat+'_sink',{'weight':weight})
 
-
-
-
         if len(directres)>0: ##if we are using miRNA data:
-        ##INSTEAD OF TWO DUMMY NODES, REPLICATE EACH TREATMENT HEAD NODE, normalize by treatment totals
+        ##ADD treatment node!!
             for treat in direct_weights.keys():
-            #    PPI_with_weights.add_edge('S',treat+'_direct',{'weight':treat_weights[treat]})
+                PPI_with_weights.add_edge(source,treat,{'weight':treat_weights[treat]})
             ##then addd the direct to mrna
-                for mrna_node in directres:
-                    if mrna_node in direct_weights[treat].keys(): #double check now
-                        weight=direct_weights[treat][mrna_node]#/sum(direct_weights[treat].values())
-#                        PPI_with_weights.add_edge(treat+'_direct',mrna_node,{'weight':weight})
-                        PPI_with_weights.add_edge(treat,mrna_node,{'weight':weight})
+                for direct_node in directres:
+                    if direct_node in direct_weights[treat].keys(): #double check now
+                        weight=direct_weights[treat][direct_node]#/sum(direct_weights[treat].values())
+                        if weight!=0.0:
+                          #  print treat,direct_node,str(weight)
+                            PPI_with_weights.add_edge(treat,direct_node,{'weight':weight})
         #now it will connect phens to indirect if phen_source was redone
         for treat in indirect_weights.keys():
-            PPI_with_weights.add_edge('S',treat,{'weight':treat_weights[treat]})
-
+            PPI_with_weights.add_edge(source,treat,{'weight':treat_weights[treat]})
             for prot in phenres:
                 if prot in indirect_weights[treat].keys():##add double check
                     weight = indirect_weights[treat][prot]#/sum(indirect_weights[treat].values())
-                    PPI_with_weights.add_edge(treat,prot,{'weight':weight})
+                    if weight!=0.0:
+                        PPI_with_weights.add_edge(treat,prot,{'weight':weight})
         
 
-        source='S'
-        sink='T'
+
         if len(indirect_weights)==1:# and len(directres)==0:
             ##this means that we're running the original RN
             source=indirect_weights.keys()[0]
@@ -407,24 +410,23 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
         if(noMrna=='False' and rawTf==''):
         #for each mRNAa
             for mrna_node in trares:
-            #find all nodes (TF) that point to that mRNA in the transcriptional network
+                 #find all nodes (TF) that point to that mRNA in the transcriptional network
                  neigh=graph_tr.predecessors(mrna_node)
-            #select neighbours of that mRNA that are not themselves mRNAs (so, they are TF involved in the production of the mRNA)
-
+                 #select neighbours of that mRNA that are not themselves mRNAs (so, they are TF involved in the production of the mRNA)
                  neigh1=[x for x in neigh if 'mrna' not in x]
-            #connect each of these neighbours to the mRNA and add the corresponding weight from the transcriptional networ
-
-#                 print 'node '+mrna_node+' has '+str(len(neigh1))+' non mrna neighbors:'
-#                 print ','.join(neigh1)
+                 #connect each of these neighbours to the mRNA and add the corresponding
+                 #weight from the transcriptional networ
                  for tf in neigh1:
                      if PPI_with_weights.has_node(tf):
                          weight = graph_tr.get_edge_data(tf,mrna_node)['weight']
-                         PPI_with_weights.add_edge(tf, mrna_node,{'weight':weight})
+                         if weight>0.0:
+                             PPI_with_weights.add_edge(tf, mrna_node,{'weight':weight})
                          
         ##write files, then execute
 #        makeCombined=True ##remove this later
-        
-        if len(mrna_weights)>1:
+
+        ##only add capacities on targets if 
+        if len(mrna_weights)>1 and not doMCF:
             target_cap=True
         else:
             target_cap=False
@@ -432,12 +434,16 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
         sources,sinks=[],[]
             
         if doMCF:
-            ##first writing single commodity files
-            print 'Writing single commodity version of SAMNet files'
+            ##first write single commodity files
             if makeCombined:
+                print 'Writing single commodity version of SAMNet files'
                 for treat in indirect_weights.keys():
                     print 'Writing '+treat+' files'
-                    tmp_output=os.path.dirname(output)+'/'+treat+'_ONLY_'+os.path.basename(output)
+                    if '/' in output: ##added to commodate non-directory paths
+                        tmp_output=os.path.dirname(output)+'/'+treat+'_ONLY_'+os.path.basename(output)
+                    else:
+                        tmp_output=treat+'_ONLY_'+os.path.basename(output)
+                        
                     wf.write_all_files(PPI_with_weights,trares,phenres,directres,tmp_output,treat,treat+'_sink',cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
                     sources.append(treat)
                     sinks.append(treat+'_sink')
@@ -464,9 +470,9 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
             print 'Finished '+solver+': '+time.asctime(time.localtime())
         ##call the post processing module to update the files
             if out==output: ##then we respect the original assignment
-                flow,node_flow,comm_flow=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
+                flow,node_flow,comm_flow,phens,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
             else: ##otherwise we need to treat this as a non mcf
-                flow,node_flow,comm_flow=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
+                flow,node_flow,comm_flow,phens,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
 
             if flow>0.0:
         ##now output expression analysis
@@ -494,7 +500,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
             for to in single_comms:
                 os.system('rm '+to+'*')
 
-        return flow
+        return flow,phens,tfs,mrnas
     #if either the transcriptional or the genetic set are empty, the program doesn't do anything
     else:
         print ""
@@ -622,13 +628,13 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
 
 #            final_mcf_node_flow.append(p2+' = '+str(flowvals[p2])+'\n')
             if p2 not in typelist:
-                if p1 in ['S','arsenic','copper','cadmium','chromium','mercury','silver','zinc','Zeb1','Snail','Tgfb','Fixed']:
+                if p1 in ['S1','arsenic','copper','cadmium','chromium','mercury','silver','zinc','Zeb1','Snail','Tgfb','Fixed']:
                     typelist.append(p2)
                     final_mcf_node_type.append(p2+' = phenotypic\n')
                     combined_mcf_node_type.append(p2+' = phenotypic\n')
                     
             if p1 not in typelist:
-                if p2=='T' or 'sink' in p2:
+                if p2=='T1' or 'sink' in p2:
                     typelist.append(p1)
                     final_mcf_node_type.append(p1+' = mrna\n')
                     combined_mcf_node_type.append(p1+' = mrna\n')

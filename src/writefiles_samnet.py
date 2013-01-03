@@ -74,6 +74,17 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     '''
 
     print 'Writing network with '+str(len(big_PPI.nodes()))+' nodes and '+str(len(big_PPI.edges()))+' edges'
+
+    ##extract commodity weights:
+    comm_weights={}
+    for c in big_PPI.successors(source):
+        comm_weights[re.sub('_treatment','',c)]=big_PPI.get_edge_data(source,c)['weight']
+   # print comm_weights
+
+  #  phenres=[p for p in phenres if p in big_PPI.nodes()]
+  #  directres=[p for p in directres if p in big_PPI.nodes()]
+  #  trares=[p for p in trares if p in big_PPI.nodes()]
+  #  print directres
     #first let's get a handle on the commodities
     com_sources=big_PPI.successors(source)
     commodity_names=[]
@@ -84,11 +95,16 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
 
     #now collect dictionary of commodity weights
     commodity_source_weights=collections.defaultdict(dict)
+    commodity_direct_weights=collections.defaultdict(dict)
     for c in commodity_names:
         corig=c.strip('\"')
         for neigh in big_PPI.neighbors(corig+'_treatment'):
-            commodity_source_weights[c][neigh]=big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
-#    print commodity_source_weights
+            if neigh in phenres:
+                commodity_source_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
+            if neigh in directres:
+                commodity_direct_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
+            #    print commodity_source_weights
+
 
     commodity_sink_weights=collections.defaultdict(dict)
     for c in commodity_names:
@@ -103,7 +119,8 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     include everything in proteins but the multi sources and multi sinks
     '''
     for p in big_PPI.nodes():
-        if p not in big_PPI.successors(source) and p not in big_PPI.predecessors(sink) and p!=source and p!=sink:
+        #if p not in big_PPI.successors(source) and p not in big_PPI.predecessors(sink)
+        if 'treatment' not in p and p!=source and p!=sink:
             file.write(' \"'+p+'\"')
     file.write(';\n')
 
@@ -116,18 +133,23 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     for two_edge_nodes in big_PPI.edges():
         n1=two_edge_nodes[0]
         n2=two_edge_nodes[1]
-        if n1!=source and n1!=sink and 'treatment' not in n1 and 'treatment' not in n2:
+        if n1!=source and n2!=sink and 'treatment' not in n1 and 'treatment' not in n2:
             file.write('(\"'+n1+'\",\"'+n2+'\")') 
     file.write(";\n")
+
+
+    
     file.write('set all_interactions :=')
     #get all edges here
     for two_edge_nodes in big_PPI.edges():
         n1=two_edge_nodes[0]
         n2=two_edge_nodes[1]
-        if n1!=source and n1!=sink and 'treatment' not in n1 and 'treatment' not in n2:
+        if n1!=source and n2!=sink and 'treatment' not in n1 and 'treatment' not in n2:
             file.write('(\"'+n1+'\",\"'+n2+'\")') 
     for p in phenres: #assume this is the union of all phenotypic data
         file.write('('+source+',\"'+p+'\")')
+    for d in directres: ##need to account for direct interactions
+        file.write('('+source+',\"'+d+'\")')
     for t in trares:#assume this is the union of all expression data
         file.write('(\"'+t+'\",'+sink+')')
     file.write(';\n')
@@ -137,7 +159,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
         file.write('set source_interactions['+c+'] :=')
         corig=c.strip('\"')
         for neighbors in big_PPI.successors(corig+'_treatment'):
-            if neighbors in phenres:
+            if neighbors in phenres+directres:
                 file.write('(\"'+source+'\",\"'+neighbors+'\")')
         file.write(';\n')
 
@@ -154,16 +176,27 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     #capacities are per edge, regardless of commodity
     file.write('\nparam capacity default 1:=\n')
     all_caps={}
-
+    all_direct_caps={}
     for i in phenres:
         total_cap=0.0
         for c in commodity_source_weights.keys():
             if i in commodity_source_weights[c].keys():
                 total_cap+=float(commodity_source_weights[c][i])
         all_caps[i]=total_cap
-#        print 'Source cap to '+i+':'+str(total_cap)
+        #        print 'Source cap to '+i+':'+str(total_cap)
     for i in all_caps.keys():
         file.write(source+' \"'+i+'\"\t'+str(float(all_caps[i]/sum(all_caps.values())))+'\n')
+
+    ##now add capacities for direct edges, if they exist...
+    for i in directres:
+        total_cap=0.0
+        for c in commodity_direct_weights.keys():
+            if i in commodity_direct_weights[c].keys():
+                total_cap+=float(commodity_direct_weights[c][i])
+        all_direct_caps[i]=total_cap
+
+    for i in all_direct_caps.keys():
+        file.write(source+' \"'+i+'\"\t'+str(float(all_direct_caps[i]/sum(all_direct_caps.values())))+'\n')
 
     all_tra_caps={}
     for i in trares:
@@ -183,17 +216,24 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     file.write('\nparam cost :=\n')
     #first add costs for source and sink edges, since those vary based on commodity
     #make sure each commodity sums to 1...
+    #added weighting here to weight by commodity
 
-    ##original method was very unfair to specific commodities with larger number of protein compared
-    ##to commodities with very few protein weights
+
+    ##normalize al weights to sum of all weights from source
     all_source_weights=float(sum([sum(commodity_source_weights[c].values()) for c in commodity_source_weights.keys()]))
     print 'All source weights '+str(all_source_weights)
+
+    ##normalize all direct weights separately
+    all_direct_weights=float(sum([sum(commodity_direct_weights[c].values()) for c in commodity_direct_weights.keys()]))
+    print 'All direct source weights '+str(all_direct_weights)
+    
     for c in commodity_source_weights.keys():
         for node in commodity_source_weights[c]:
-            #first check to see if node is connected...
-            if node in phenres:
-#                file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_source_weights[c][node]/sum(commodity_source_weights[c].values()))+'\n') ##THIS IS OLD WAY
-                file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_source_weights[c][node]/all_source_weights)+'\n')
+            file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_source_weights[c][node]/all_source_weights)+'\n')
+
+    for c in commodity_direct_weights.keys():
+        for node in commodity_direct_weights[c]:
+            file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_direct_weights[c][node]/all_direct_weights)+'\n')
 
     for c in commodity_sink_weights.keys():
         for node in commodity_sink_weights[c]:
@@ -509,10 +549,12 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
 #    file.write('set sourcesink := '+sink+' '+source+' ;\n')
     file.write('set sourcesink := \"'+sink+'\" \"'+source+'\" ')
     if usetargetcapacity:
-        for treat in big_PPI.neighbors(source):
+        all_neighbors=big_PPI.neighbors(source)
+        all_neighbors.update(big_PPI.predecessors(sink))
+        for treat in all_neighbors:
             file.write('\"'+treat+'\" ')
-        for treat_s in big_PPI.predecessors(sink):
-            file.write('\"'+treat_s+'\" ')
+#        for treat_s in big_PPI.predecessors(sink):
+#            file.write('\"'+treat_s+'\" ')
         
     file.write(';\n')
 

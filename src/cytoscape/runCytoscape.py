@@ -27,6 +27,7 @@ def main():
     parser.add_option('--nomrna',default=False,action='store_true',dest='nomrna',help='Set if you want no mRNA in the network')
     parser.add_option('--has_DE_info',default=False,action='store_true',dest='has_de',help='Set this argument if you want to use differential expression info')
     parser.add_option('--isMCF',default=False,action='store_true',dest='mcf',help='Set if you want multi-commodity view of network')
+    parser.add_option('--noSymbol',default=False,action='store_true',dest='nosymbol',help='Set this flag to use original sifs, not symbol-replaced ones')
 
     (opts,args)=parser.parse_args()
 
@@ -38,24 +39,29 @@ def main():
 
     fpath=os.path.dirname(os.path.abspath( __file__ ))
 
-    eattr=os.path.realpath(prefix+'_ppi_attributes_symbol.eda')        
+    if opts.nosymbol:
+        sym=''
+    else:
+        sym='_symbol'
+        
+    eattr=os.path.realpath(prefix+'_ppi_attributes'+sym+'.eda')        
     propFile=fpath+'/nodeEdgeVizMapFile.props'
     if opts.nomrna:
-        net=os.path.realpath(prefix+'_no_mrna_symbol.sif')
+        net=os.path.realpath(prefix+'_no_mrna'+sym+'.sif')
 
     elif opts.mcf:
-        net=os.path.realpath(prefix+'_mcfs_symbol.sif')
-        eattr=os.path.realpath(prefix+'_edge_commodity_symbol.eda')
+        net=os.path.realpath(prefix+'_mcfs'+sym+'.sif')
+        eattr=os.path.realpath(prefix+'_edge_commodity'+sym+'.eda')
         ##extra fiels for mcf
-        eattr2=os.path.realpath(prefix+'_edge_type_symbol.eda')
-        node_tab=os.path.realpath(prefix+'_node_comm_flow_symbol.noa')
+        eattr2=os.path.realpath(prefix+'_edge_type'+sym+'.eda')
+        node_tab=os.path.realpath(prefix+'_node_comm_flow'+sym+'.noa')
         propFile=fpath+'/nodeEdgeVizMapFile_mcf.props'
     else:
-        net=os.path.realpath(prefix+'_all_symbol.sif')
+        net=os.path.realpath(prefix+'_all'+sym+'.sif')
 
 
-    nattr1=os.path.realpath(prefix+'_node_type_symbol.noa')
-    nattr2=os.path.realpath(prefix+'_node_flow_symbol.noa')
+    nattr1=os.path.realpath(prefix+'_node_type'+sym+'.noa')
+    nattr2=os.path.realpath(prefix+'_node_flow'+sym+'.noa')
 
 
 

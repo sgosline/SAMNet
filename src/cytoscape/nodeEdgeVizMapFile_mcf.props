@@ -3,7 +3,7 @@
 # Any changes may make these visual mappings unreadable.
 # Please make sure you know what you are doing before modifying this file by hand.
 #
-#Mon Jul 16 16:08:50 EDT 2012
+#Thu Dec 06 15:36:55 EST 2012
 edgeAppearanceCalculator.Minimal.defaultEdgeColor=51,51,51
 edgeAppearanceCalculator.Minimal.defaultEdgeFont=SanSerif,plain,10
 edgeAppearanceCalculator.Minimal.defaultEdgeFontSize=10.0
@@ -173,6 +173,8 @@ edgeColorCalculator.Sample1-Edge\ Color-Continuous\ Mapper.mapping.type=Continuo
 edgeColorCalculator.Sample1-Edge\ Color-Continuous\ Mapper.visualPropertyType=EDGE_COLOR
 edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.controller=interaction
 edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.controllerType=4
+edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.map.KO=51,102,255
+edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.map.WT=153,0,0
 edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.map.arsenic=153,153,0
 edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.map.cadmium=51,102,0
 edgeColorCalculator.responseNet-Edge\ Color-Discrete\ Mapper.mapping.map.chromium=0,102,102
@@ -656,11 +658,11 @@ nodeUniformSizeCalculator.Node\ Size-Continuous\ Mapper.mapping.interpolator=Lin
 nodeUniformSizeCalculator.Node\ Size-Continuous\ Mapper.mapping.type=ContinuousMapping
 nodeUniformSizeCalculator.Node\ Size-Continuous\ Mapper.visualPropertyType=NODE_SIZE
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.boundaryvalues=2
-nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv0.domainvalue=7.72003548643E-6
+nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv0.domainvalue=1.10285461931E-5
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv0.equal=36.00807
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv0.greater=36.00807
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv0.lesser=1.0
-nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv1.domainvalue=0.0111833291838
+nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv1.domainvalue=0.195622434365
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv1.equal=63.636696
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv1.greater=1.0
 nodeUniformSizeCalculator.responseNet-Node\ Size-Continuous\ Mapper.mapping.bv1.lesser=63.636696
