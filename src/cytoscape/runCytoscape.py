@@ -1,3 +1,4 @@
+#!/usr/bin/python
 '''
 runCytoscape.py
 Helper file to facilitate plotting of SAMNet output in cytoscape

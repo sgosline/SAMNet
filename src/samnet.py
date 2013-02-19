@@ -2,7 +2,7 @@
 samnet.py
 Primary samnet executable
 
-Copyright (c) 2012 Sara JC Gosline
+Copyright (c) 2012-2013 Sara JC Gosline
 sgosline@mit.edu
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -15,6 +15,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 import sys,pickle
 from numpy import *
 import os,re
+##new addition 2013-01-17, replacing os.system with spawn command
+import subprocess
 import networkx
 from optparse import OptionParser
 import time
@@ -463,16 +465,23 @@ nn
             out=single_comms[i]
             source=sources[i]
             sink=sinks[i]
-            cmd='ampl '+ out+".ampl"
+            cmd='/net/dorsal/apps/ampl/ampl'
+            args=out+".ampl"
     #cmd='ampl '+ Dirname+gene+".ampl"
             print 'Running '+solver+': '+time.asctime(time.localtime())
-            os.system(cmd)
-            print 'Finished '+solver+': '+time.asctime(time.localtime())
+            retcode = subprocess.call(cmd+' '+args,shell=True)
+            if retcode!=0:
+                nr=subprocess.call('ampl_lic stop',shell=True)
+                ##sometimes we have trouble getting license, try again
+                retcode = subprocess.call(cmd+' '+args,shell=True)
+
+            #            os.system(cmd)
+            print 'Finished '+solver+': '+time.asctime(time.localtime())+' with return code '+str(retcode)
         ##call the post processing module to update the files
             if out==output: ##then we respect the original assignment
-                flow,node_flow,comm_flow,phens,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
+                flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
             else: ##otherwise we need to treat this as a non mcf
-                flow,node_flow,comm_flow,phens,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
+                flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
 
             if flow>0.0:
         ##now output expression analysis
@@ -487,9 +496,9 @@ nn
             print 'Now removing .dat and .txt files to save space'
             for out in single_comms:
                 try:
-                    os.system('rm '+out+'.txt '+out+'.dat')
+                    retcode=subprocess.call('rm '+out+'.txt '+out+'.dat',shell=True)
                 except IOerror:
-                    os.system('rm '+out+'.dat')
+                    retcode=subprocess.call('rm '+out+'.dat',shell=True)
         if makeCombined and doMCF:
             single_comms=single_comms[0:len(single_comms)-1]
             edas=[f+'_ppi_attributes_symbol.eda' for f in single_comms]
@@ -498,9 +507,9 @@ nn
             edas=[f+'_ppi_attributes.eda' for f in single_comms]
             combine_single_flows_to_make_multi(edas,orig_output=output)
             for to in single_comms:
-                os.system('rm '+to+'*')
+                retcode=subprocess.call('rm '+to+'*')
 
-        return flow,phens,tfs,mrnas
+        return flow,phens,prots,tfs,mrnas
     #if either the transcriptional or the genetic set are empty, the program doesn't do anything
     else:
         print ""
@@ -508,18 +517,22 @@ nn
 
 
 
-def combine_single_flows_to_make_multi(filename_list,orig_output):
+def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=False,ismcf=True):
     '''
     takesa  list of edge attribute files and combines them into sif and eda file...
     copied from ../chemoExpr/bin/compare_mcf_with_single.py
     Then modified to include a second sif file, this time with the results of a combined MCF/merged network
+    Last argument collapses edges into a single edge, weighted by the fraction of commodities selecting that edge
     '''
     #create all 5 files
     final_mcf_sif=[]
-    final_mcf_edge_attr=['EdgeCommodity\n']
+    final_mcf_edge_comm=['EdgeCommodity\n']
+    final_mcf_edge_type=['Interaction Type\n']
+    
     final_mcf_node_type=['NodeType\n']
     final_mcf_node_flow=['Node Flow\n']
     final_mcf_node_comm_flow=[]
+
 
     ##dictionaries to handle new flow values
     node_flow_dict={}
@@ -531,28 +544,42 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
         sym='_symbol'
     else:
         sym=''
+#    if ismcf:
+#        mc='_mcfs'
+#    else:
+#        mc='_all'
 
     sif_output=orig_output+'_mcfs'+sym+'.sif'
-    edge_attr_output=orig_output+'_edge_type'+sym+'.eda'
+    edge_type_output=orig_output+'_edge_type'+sym+'.eda'
+    edge_comm_output=orig_output+'_edge_commodity'+sym+'.eda'
+    
     node_type_output=orig_output+'_node_type'+sym+'.noa'
     node_flow_output=orig_output+'_node_flow'+sym+'.noa'
     node_comm_output=orig_output+'_node_comm_flow'+sym+'.noa'
 
-    ##dictionaries to handle existing flow values
+
+    ##dictionaries to handle existing flow values or counts if collapse_edges=T
     combined_node_flow_dict={}
     combined_comm_flow_dict=defaultdict(dict)
-    
+
+    ###check if files exist, then open them here
     if os.path.exists(sif_output):
         combined_mcf_sif=open(sif_output,'r').readlines()
     else:
         combined_mcf_sif=[]
         print 'no file: '+sif_output
         
-    if os.path.exists(edge_attr_output):
-        combined_mcf_edge_attr=open(edge_attr_output,'r').readlines()
+    if os.path.exists(edge_comm_output):
+        combined_mcf_edge_comm=open(edge_comm_output,'r').readlines()
     else:
-        combined_mcf_edge_attr=['EdgeCommodity\n']
-        print 'no file: '+edge_attr_output
+        combined_mcf_edge_comm=['EdgeCommodity\n']
+        print 'no file: '+edge_comm_output
+        
+    if os.path.exists(edge_type_output):
+        combined_mcf_edge_type=open(edge_type_output,'r').readlines()
+    else:
+        combined_mcf_edge_type=['Interaction Type\n']
+    
         
     if os.path.exists(node_type_output):
         combined_mcf_node_type=open(node_type_output,'r').readlines()
@@ -572,7 +599,8 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
     ##now re-assign        
     combined_mcf_node_flow=['Node Flow\n']
 
-    if os.path.exists(node_comm_output):
+    ##get original flow data for each node
+    if os.path.exists(node_comm_output) and ismcf:
         combined_mcf_node_comm_flow=open(node_comm_output,'r').readlines()
         comms=[s.strip() for s in combined_mcf_node_comm_flow[0].split('\t')[1:]]
         print comms
@@ -584,8 +612,14 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
 #    else:
 #        combined_mcf_node_comm_flow=[]
     
-    #list of commodities processed
+    #list of commodities processed, use this for counts if collapsing
     comlist=[]
+
+    #create edge/flow dictionaries instead of writing to file
+    sif_file_list=[]
+    edge_comm_file_dict={}
+    edge_type_file_dict={}
+    
     for f in filename_list:
         ##break up filename
         if not os.path.exists(f):
@@ -593,22 +627,42 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
             continue
         rows=open(f,'r').readlines()[1:]
         f=os.path.basename(f)
-        
-        commname=re.sub('Yeast','',f.split('_treatment_ONLY')[0])
+        if 'Yeast' in f:
+            commname=re.sub('Yeast','',f.split('_RN_treatment_ONLY')[0])
+        else:
+            commname=f.split('REMOVED')[0].split('_')[-2]
         comlist.append(commname)
         print 'Processing commodity '+commname
-        flowvals=recalc_node_flow(rows)
+        flowvals=recalc_node_flow(rows,collapse_edges)
 #        flowlist=[]
-        typelist=[]
-        for row in rows:
+        typelist=[]        
+        for row in rows[1:]:
+         #   print row
             p1,i_type,p2,eq,flow=row.strip().split()
-            ##add edge to sif files
-            final_mcf_sif.append(p1+'\t'+commname+'\t'+p2+'\n')
-            combined_mcf_sif.append(p1+'\t'+commname+'_responseNet\t'+p2+'\n')
+            i_type=re.sub('\(','',re.sub('\)','',i_type))
+            if i_type not in typelist:
+                typelist.append(i_type)
 
-            #add edge to attribute files
-            final_mcf_edge_attr.append(p1+' ('+commname+') '+p2+' = '+flow+'\n')
-            combined_mcf_edge_attr.append(p1+' ('+commname+'_responseNet) '+p2+'\n')
+            if collapse_edges and ismcf:
+                commname=i_type
+            #add edge to list
+            edge=p1+'\t'+commname+'\t'+p2+'\n'
+            if edge not in sif_file_list:
+               # print edge
+                sif_file_list.append(edge)
+
+            ##now add counts attributes
+            edge_a=p1+' ('+commname+') '+p2
+            if edge_a not in edge_comm_file_dict.keys():
+                edge_comm_file_dict[edge_a]=1.0
+            else:
+                edge_comm_file_dict[edge_a]=edge_comm_file_dict[edge_a]+1.0
+
+            if edge_a not in edge_type_file_dict.keys():
+                if collapse_edges:
+                    edge_type_file_dict[edge_a]=flow.strip()
+                else:
+                    edge_type_file_dict[edge_a]=re.sub('\(','',re.sub('\)','',i_type))
             
             #            if p2 not in flowlist:
             #                flowlist.append(p2)
@@ -623,28 +677,60 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
                 combined_node_flow_dict[p2]=flowvals[p2]
 
             ##now do the commodity flow
-            comm_flow_dict[p2][commname]=flowvals[p2]
-            combined_comm_flow_dict[p2][commname+'_responseNet']=flowvals[p2]
+            if p2 in comm_flow_dict.keys() and commname in comm_flow_dict[p2].keys():
+                comm_flow_dict[p2][commname]+=flowvals[p2]
+            else:
+                comm_flow_dict[p2][commname]=flowvals[p2]
+            if p2 in combined_comm_flow_dict.keys() and commname+'_altered' in combined_comm_flow_dict[p2].keys():
+                combined_comm_flow_dict[p2][commname+'_altered']+=flowvals[p2]
+            else:
+                combined_comm_flow_dict[p2][commname+'_altered']=flowvals[p2]
 
 #            final_mcf_node_flow.append(p2+' = '+str(flowvals[p2])+'\n')
-            if p2 not in typelist:
+            node_type_list=[]
+            if p2 not in node_type_list:
                 if p1 in ['S1','arsenic','copper','cadmium','chromium','mercury','silver','zinc','Zeb1','Snail','Tgfb','Fixed']:
-                    typelist.append(p2)
+                    node_type_list.append(p2)
                     final_mcf_node_type.append(p2+' = phenotypic\n')
                     combined_mcf_node_type.append(p2+' = phenotypic\n')
                     
-            if p1 not in typelist:
+            if p1 not in node_type_list:
                 if p2=='T1' or 'sink' in p2:
-                    typelist.append(p1)
+                    node_type_list.append(p1)
                     final_mcf_node_type.append(p1+' = mrna\n')
                     combined_mcf_node_type.append(p1+' = mrna\n')
+
 
     #first handle node flow commodities
     final_mcf_node_flow.extend([node+' = '+str(node_flow_dict[node])+'\n' for node in node_flow_dict.keys()])
     combined_mcf_node_flow.extend([node+' = '+str(combined_node_flow_dict[node])+'\n' for node in combined_node_flow_dict.keys()])
+
+    ##then handle edge files
+    ##add edge to sif files          
+    final_mcf_sif=sif_file_list
+    for edge in sif_file_list:
+        vals=edge.split('\t')
+        vals[1]=vals[1]+'_altered'
+       #this seems wrong vals[1]=vals[2]+'_altered'
+        combined_mcf_sif.append('\t'.join(vals))
+    
+    #add edge to attribute files
+    for edge_a in edge_comm_file_dict.keys():
+        cv=edge_comm_file_dict[edge_a]/len(comlist)
+        et=edge_type_file_dict[edge_a]
+        final_mcf_edge_comm.append(edge_a+' = '+str(cv)+'\n')
+        final_mcf_edge_type.append(edge_a+' = '+et+'\n')
+        
+        edge_arr=edge_a.split()
+        ##replaced arr with edge_arr below, will this break actual mcf code?  seems like a bug
+        edge_arr[1]='('+re.sub('\(','',re.sub('\)','',edge_arr[1]))+'_altered)'
+        combined_mcf_edge_comm.append(' '.join(edge_arr)+' = '+str(cv)+'\n')
+        combined_mcf_edge_type.append(' '.join(edge_arr)+' = '+et+'\n')
     
     ##now handle node flow matrix file
     comms=comlist
+    if collapse_edges and ismcf:
+        comms=typelist
     final_mcf_node_comm_flow=['Node\t'+'\t'.join(comms)+'\n']
     for node in comm_flow_dict.keys():
         row=node
@@ -656,7 +742,7 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
         final_mcf_node_comm_flow.append(row+'\n')
 
     ##now make node flow commodity file for combined
-    combined_comms=comms+[c+'_responseNet' for c in comms]
+    combined_comms=comms+[c+'_altered' for c in comms]
     print combined_comms
     combined_mcf_node_comm_flow=['Node\t'+'\t'.join(combined_comms)+'\n']
     for node in combined_comm_flow_dict.keys():
@@ -672,36 +758,43 @@ def combine_single_flows_to_make_multi(filename_list,orig_output):
     combined_output=os.path.dirname(orig_output)+'/MERGED_And_COMBINED'+re.sub('commFlow','',os.path.basename(orig_output))
     
     newfname=orig_output+'_mcfs'+sym+'.sif'
-    newedaname=orig_output+'_edge_commodity'+sym+'.eda'    
+    newedaname=orig_output+'_edge_commodity'+sym+'.eda'
+    new_type_edaname=orig_output+'_edge_type'+sym+'.eda'    
     newtypename=orig_output+'_node_type'+sym+'.noa'
     newflowname=orig_output+'_node_flow'+sym+'.noa'
     newnodeflowname=orig_output+'_node_comm_flow'+sym+'.noa'
   #  if not os.path.exists('combined_graphs'):
   #      os.system('mkdir combined_graphs')
     open(newfname,'w').writelines(final_mcf_sif)
-    open(newedaname,'w').writelines(final_mcf_edge_attr)
+    open(newedaname,'w').writelines(final_mcf_edge_comm)
     open(newtypename,'w').writelines(final_mcf_node_type)    
     open(newflowname,'w').writelines(final_mcf_node_flow)
     open(newnodeflowname,'w').writelines(final_mcf_node_comm_flow)
+    open(new_type_edaname,'w').writelines(final_mcf_edge_type)
 
     ##now write combined files
     comb_newfname=combined_output+'_mcfs'+sym+'.sif'
-    comb_newedaname=combined_output+'_edge_commodity'+sym+'.eda'    
+    comb_newedaname=combined_output+'_edge_commodity'+sym+'.eda'
+    comb_type_edaname=combined_output+'_edge_type'+sym+'.eda'
     comb_newtypename=combined_output+'_node_type'+sym+'.noa'
     comb_newflowname=combined_output+'_node_flow'+sym+'.noa'
     comb_newnodeflowname=combined_output+'_node_comm_flow'+sym+'.noa'
     
     open(comb_newfname,'w').writelines(combined_mcf_sif)
-    open(comb_newedaname,'w').writelines(combined_mcf_edge_attr)
+    open(comb_newedaname,'w').writelines(combined_mcf_edge_comm)
+    open(comb_type_edaname,'w').writelines(combined_mcf_edge_type)
     open(comb_newtypename,'w').writelines(combined_mcf_node_type)    
     open(comb_newflowname,'w').writelines(combined_mcf_node_flow)
     open(comb_newnodeflowname,'w').writelines(combined_mcf_node_comm_flow)
 
-def recalc_node_flow(eda_rows):
+def recalc_node_flow(eda_rows,not_flow=True):
     flowdict={}
     for row in eda_rows:
+#        print row
         p1,itype,p2,eq,flow=row.strip().split()
-        if p2 not in flowdict.keys():
+        if not_flow:
+            flowdict[p2]=1.0
+        elif p2 not in flowdict.keys():
             flowdict[p2]=float(flow)
         else:
             flowdict[p2]+=float(flow)

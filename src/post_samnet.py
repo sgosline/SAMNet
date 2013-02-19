@@ -93,12 +93,13 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
     '''
     
     phens=set()
+    other_prots=set()
     tfs=set()
     mrnas=set()
     dirmrnas=set()
     
     if(node_flow==-1):
-        return phens,tfs,mrnas
+        return phens,other_prots,tfs,mrnas
 
    # tfs,dirmrna,indirmrna,phens,flows=[],[],[],[],[]
 
@@ -147,7 +148,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
                 mrnas.add(tprot2)
                 #attrfile2.write(tprot2+' = '+'mrna'+'\n')
                 #protein mrna
-                attrfile6.write(tprot1+' ('+comm+') '+tprot2+' = pm\n')
+            attrfile6.write(tprot1+' ('+comm+') '+tprot2+' = pm\n')
             #otherwise, make it a square
 #            elif tprot2 not in phens and tprot2 not in mrnas:
             phens.add(tprot2)
@@ -164,6 +165,8 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             attrfile1.write(prot1+' (pp) '+prot2+' = '+flow+'\n')
             attrfile5.write(prot1+' ('+comm+') '+prot2+' = '+flow+'\n')
             attrfile6.write(prot1+' ('+comm+') '+prot2+' = pp\n')
+#            other_prots.add(prot1)
+            other_prots.add(prot2)
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
                 flows.add(prot2)
@@ -205,6 +208,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
     allprots.update(phens)
     allprots.update(mrnas)
     allprots.update(tfs)
+    allprots.update(other_prots)
     for prot in allprots:
         attrstring=prot+' = '
         if prot in tfs:
@@ -227,7 +231,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
         '''
         network_output_details.write(str(len(protWeightsPicked))+' Total protWeights included in final network (also includes those not connected to source)')
         '''  
-    return phens,tfs,mrnas
+    return phens,other_prots,tfs,mrnas
             
 
 
@@ -279,7 +283,8 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
     '''
     
     if not os.path.exists(output_file+'.txt'):
-        return dict(),dict(),0.0
+        print 'Output file missing'
+        return dict(),dict(),0.0,set(),set(),set()
    ##Calculate node flow for ranking of signaling proteins
     (node_flow,comm_flow,total)=calculate_node_flow(open(output_file+'.txt','r').readlines(),mcf)#returns a dictionary of node flow
     
@@ -287,8 +292,9 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
 
         #visualize
     if total==0.0:
-        return total,node_flow,comm_flow
-    phens,tfs,mrnas=write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
+        print 'No flow'
+        return total,node_flow,comm_flow,set(),set(),set()
+    phens,prots,tfs,mrnas=write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
             ##MODIFIED by SGOSLINE: added this to do identifer matching for the sif files
     
     if(species_name.lower==''):
@@ -318,11 +324,11 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
         identifier_matching.parseAttrFileFromStringToGeneName(open(output_file+'_edge_commodity.eda','r'),output_file+'_edge_commodity_symbol.eda',idfile)
         identifier_matching.parseAttrFileFromStringToGeneName(open(output_file+'_edge_type.eda','r'),output_file+'_edge_type_symbol.eda',idfile)
 
-        identifier_matching.parseTabFileFromStringToGeneName(open(output_file+'_node_comm_flow.noa','r'),output_file+'_node_comm_flow_symbol.noa',idfile)
+        identifier_matching.pareTabFileFromStringToGeneName(open(output_file+'_node_comm_flow.noa','r'),output_file+'_node_comm_flow_symbol.noa',idfile)
 
 ##created new function for node attributes
         identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_node_type.noa','r'),output_file+'_node_type_symbol.noa',idfile,True)
         identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_node_flow.noa','r'),output_file+'_node_flow_symbol.noa',idfile,False)
         if len(de_file)>0:
             identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_DiffExpr.noa','r'),output_file+'_DiffExpr.noa',idfile,False)
-    return total,node_flow,comm_flow,phens,tfs,mrnas
+    return total,node_flow,comm_flow,phens,prots,tfs,mrnas
