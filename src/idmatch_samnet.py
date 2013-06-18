@@ -97,6 +97,8 @@ def parseNodeAttrFileFromStringToGeneName(sif_file,out_file,geneDict='',isString
 
     for l in lines[1:]:
         arr=re.split(' = ',l.strip())
+        if len(arr)<2:
+            continue
         pep=arr[0].strip()
         if pep in geneDict.keys() and ('ENSP' in pep or 'ENSMUSP'in pep or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1 or 'icrogid:' in pep):  
             matches=geneDict[pep]

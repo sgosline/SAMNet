@@ -90,6 +90,7 @@ def main():
     
     parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names or \'humaniref\' to use human iref identifiers or \'mouseiref\' to use mouse genes mapped to human identifiers.",default='')
 
+    parser.add_option('--hier-cap',action='store_true',dest='hier_cap',help='OPTIONAL: Set this flag to make capacities decrease by factor of 1/10^x where x is unweighted shortest path to Source.  WARNING: not tested for MCF yet.',default=False)
     
     ##more modifications, filter by tissue type
     parser.add_option('--expressedproteins',type='string',default='',dest='expr_prots',help='OPTIONAL: filters protein interaction network by protein identifiers provided in list. Best if drawn from mRNA Expression data for specific tissue, but also can be grabbed from gene atlas list of tissue-specific proteins')
@@ -160,7 +161,8 @@ def main():
 
  #   PPI_with_weights = multiple_args_into_one_list(options.PPIfile,True)
     print ppi_str
-    
+
+        
     ############################TF->mRNA network###################################################
     print ".............protein-DNA and transcriptional data..................."
 
@@ -195,6 +197,7 @@ def main():
 
     
     print tf_string
+
     
         
     #NAME OF OUTPUT FILE
@@ -213,11 +216,29 @@ def main():
 #            arr=row.strip().split('\t')
 #            diff_ex_dict[arr[0]]=float(arr[1])
 #    print final_weights
+    ############################Hierarchical Network capacities######### ###########################
+    node_caps=defaultdict(dict)## dictionary of all nodes for each commodity
     
+    if hier_cap:
+        print '...............Setting capacities by distance from source...............'
+    ##create shortest-distance network for each commodity to avoid unecessary shortcuts
+        for node in PPI_with_weights.nodes():
+            for treat in indirect_weights.keys():
+                if node!=treat and node!=treat+'_sink':
+                    spdist=1.0
+                    try:
+                        spdist=networkx.shortest_path_length(PPI_with_weights,treat,node,None)
+                    except networkx.exception.NetworkXNoPath:
+                        continue
+                    node_cap=power(10.0,float(spdist)*-1.0)
+            #print node+' '+treat+' '+str(spdist)+' '+str(cap)
+                      #  if spdist>1:
+                      #      print node
+                node_caps[treat][node]=node_cap
         
-    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=final_weights,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,debug=options.debug,rawTf=options.raw_tf_data,noMrna=options.no_mrna,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=options.mcf,makeCombined=options.make_combined)
+    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=final_weights,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,debug=options.debug,rawTf=options.raw_tf_data,noMrna=options.no_mrna,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=options.mcf,makeCombined=options.make_combined,node_caps=node_caps)
 
-def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights,output,updateIds,cap=0.7,gamma=8,solver='loqo',debug=False,rawTf='',noMrna='False',treat_weights=dict(), diff_ex_vals=dict(),de_cap='sink',doMCF=False,makeCombined=False):
+def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights,output,updateIds,cap=0.7,gamma=8,solver='loqo',debug=False,rawTf='',noMrna='False',treat_weights=dict(), diff_ex_vals=dict(),de_cap='sink',doMCF=False,makeCombined=False,node_caps={}):
 #    print de_cap
     
     '''
@@ -238,6 +259,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     noMrna: string set to 'True' if mRNA is replaced with TFs linked to sink
     diff_ex_vals: dictionary of differential expression values
     de_cap: set to 'source' or 'all' if you want to add diff_ex_vals-based capacities
+    hier_cap: Set this flag to set hierarchical capacities (1/10^x where x is unweighted sp to source)
     ** -> These dictionaries are modified by the method, so be sure to pass in copies.
 nn    
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
@@ -249,7 +271,9 @@ nn
         for n in all_nodes[0:1000]:
             PPI_with_weights.remove_node(n)
             '''
-
+   # print indirect_weights.keys()
+#    if doMCF and len(node_caps)>0:
+#        print 'Selected to run in multi-commodity mode with hierarchical capacities.  This has not been tested yet!'
     #EXPERIMENTAL DATA TO INCLUDE IN THE ANALYSIS
     #the phenotypic data to be included into interactome (only the proteins that are already in interactome)
     #phenres is portion of phenotypic data that can be analyzed with the given interactome
@@ -365,6 +389,7 @@ nn
 
         source='S1'
         sink='T1'
+
         
         #connect transcriptional data (mRNA) to the sink and add the corresponding weights
         for treat in mrna_weights.keys():
@@ -397,10 +422,10 @@ nn
         
 
 
-        if len(indirect_weights)==1:# and len(directres)==0:
+        if not doMCF:# and len(directres)==0:
             ##this means that we're running the original RN
             source=indirect_weights.keys()[0]
-        if len(mrna_weights)==1:
+#        if len(mrna_weights)==1:
             sink=mrna_weights.keys()[0]+'_sink'
 
 
@@ -446,16 +471,16 @@ nn
                     else:
                         tmp_output=treat+'_ONLY_'+os.path.basename(output)
                         
-                    wf.write_all_files(PPI_with_weights,trares,phenres,directres,tmp_output,treat,treat+'_sink',cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+                    wf.write_all_files(PPI_with_weights,trares,phenres,directres,tmp_output,treat,treat+'_sink',cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
                     sources.append(treat)
                     sinks.append(treat+'_sink')
                     single_comms.append(tmp_output)
             ##now run multi commodity
             print "Writing MCF version of SAMNet files"
             output+='multiComm'
-            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         else:
-            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         
         #execute loqo
         single_comms.append(output)
@@ -637,7 +662,7 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
 #        flowlist=[]
         typelist=[]        
         for row in rows[1:]:
-         #   print row
+            #print row
             p1,i_type,p2,eq,flow=row.strip().split()
             i_type=re.sub('\(','',re.sub('\)','',i_type))
             if i_type not in typelist:
@@ -699,6 +724,10 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
                     node_type_list.append(p1)
                     final_mcf_node_type.append(p1+' = mrna\n')
                     combined_mcf_node_type.append(p1+' = mrna\n')
+                if 'H3K' in p1:
+                    node_type_list.append(p1)
+                    final_mcf_node_type.append(p1+' = transcriptionfactor\n')
+                    combined_mcf_node_type.append(p1+' = transcriptionfactor\n')
 
 
     #first handle node flow commodities
@@ -752,7 +781,7 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
                 row+='\t'+str(combined_comm_flow_dict[node][com])
             else:
                 row+='\t0'
-        combined_mcf_node_flow.append(row+'\n')
+        combined_mcf_node_comm_flow.append(row+'\n')
         
     orig_output=os.path.dirname(orig_output)+'/MERGED_FROM_SINGLE'+re.sub('commFlow','',os.path.basename(orig_output))
     combined_output=os.path.dirname(orig_output)+'/MERGED_And_COMBINED'+re.sub('commFlow','',os.path.basename(orig_output))
@@ -790,7 +819,7 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
 def recalc_node_flow(eda_rows,not_flow=True):
     flowdict={}
     for row in eda_rows:
-#        print row
+      #  print row
         p1,itype,p2,eq,flow=row.strip().split()
         if not_flow:
             flowdict[p2]=1.0

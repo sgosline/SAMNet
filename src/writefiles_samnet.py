@@ -65,7 +65,7 @@ def write_mcf_changeflow(wholename,gamma):
     file.close()
 
               
-def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,debug):
+def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
 #    print 'Writing mcf file'
     '''
     This is similar to the writedat file with multiple sources and sinks, but 
@@ -74,7 +74,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     '''
 
     print 'Writing network with '+str(len(big_PPI.nodes()))+' nodes and '+str(len(big_PPI.edges()))+' edges'
-
+    
     ##extract commodity weights:
     comm_weights={}
     for c in big_PPI.successors(source):
@@ -88,6 +88,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     #first let's get a handle on the commodities
     com_sources=big_PPI.successors(source)
     commodity_names=[]
+
     for c in com_sources:
 #        commodity_names.append('\"'+re.sub('_treatment','',c)+'\"')
         commodity_names.append(re.sub('_treatment','',c))
@@ -177,6 +178,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     file.write('\nparam capacity default 1:=\n')
     all_caps={}
     all_direct_caps={}
+    ##for hierarchical capacties, keep source and sink the same
     for i in phenres:
         total_cap=0.0
         for c in commodity_source_weights.keys():
@@ -210,6 +212,22 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
     for i in all_tra_caps.keys():
         file.write('\"'+i+'\" '+sink+'\t'+str(float(all_tra_caps[i]/sum(all_tra_caps.values())))+'\n')
 
+
+    ##now add in hierarchical capactities
+    other_node_caps={}
+    for comm in node_caps.keys():
+        for node in node_caps[comm].keys():
+            if node in other_node_caps.keys():
+                mval=max(other_node_caps[node],node_caps[comm][node])
+            else:
+                mval=node_caps[comm][node]
+
+    ##now write all to file
+    for i in other_node_caps.keys():
+        if i not in all_tra_caps.keys() and i!=source:
+            for suc in networkx.successors(i):
+                file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
+                
     file.write(';\n')
 
     #COSTS
@@ -465,7 +483,25 @@ def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,sou
     file.write(source+' '+'indirect'+'\t'+'0.5'+'\n')
     
     for i in trares:
-        file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')			
+        file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')
+
+
+    
+    ##now add in hierarchical capactities
+    other_node_caps={}
+    for comm in node_caps.keys():
+        for node in node_caps[comm].keys():
+            if node in other_node_caps.keys():
+                mval=max(other_node_caps[node],node_caps[comm][node])
+            else:
+                mval=node_caps[comm][node]
+
+    ##now write all to file
+    for i in other_node_caps.keys():
+        if i not in all_tra_caps.keys() and i!=source:
+            for suc in networkx.successors(i):
+                file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
+                
     file.write(';\n')
 
     #COST
@@ -509,10 +545,11 @@ def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,sou
     file.close()
 
 
-def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,outputfilename,source,sink,cap,usetargetcapacity=True,diff_ex_vals=dict(),de_cap='sink',debug=False):
+def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,outputfilename,source,sink,cap,usetargetcapacity=True,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
     '''
     Third version of writedatafile_* that incorporates multiple treatments
     '''
+
 
     #print this on the screen, but it is not appearing in the dat file    
     print "vertices number:", len(big_PPI.nodes())
@@ -599,10 +636,16 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
 
     missed_caps=0
     total_caps=0
+    other_node_caps={}
     for treat in big_PPI.successors(source):#phenres.keys():
         #if usetargetcapacity:
         #    for targ in big_PPI.successors(treat):
         #        file.write('\"'+treat+'\" \"'+targ+'\"\t'+str(float(big_PPI.get_edge_data(treat,targ)['weight']))+'\n')
+        ##now add in hierarchical capactities
+        ##now write all to file
+
+                    
+        ##this is oana's code, not using right now###############################
         #don't need this anymore...
         if de_cap=='none' or de_cap=='sink':
             file.write('\"'+source+'\" \"'+treat+'\"\t'+str(float(big_PPI.get_edge_data(source,treat)['weight'])/(total_source_weights))+'\n')
@@ -643,8 +686,25 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
 
         else:
             print ("Diffex capacities for all nodes not yet implemented")
+        
+    #End diffex capping stuff#############################################
+    if debug:
+        print 'Missed '+str(missed_caps)+' diffex vals for '+source+' out of '+str(total_caps)
 
-    print 'Missed '+str(missed_caps)+' diffex vals for '+source+' out of '+str(total_caps)
+    ##now write out node capacities, only for 1 source
+    for node in node_caps[source].keys():
+#        if node in other_node_caps.keys():
+#            mval=max(other_node_caps[node],node_caps[source][node])
+#        else:
+        other_node_caps[node]=node_caps[source][node]
+        #print 'Node capacity for '+node+' in commodity '+source+' is '+str(mval)
+
+    for i in other_node_caps.keys():
+        if i not in big_PPI.predecessors(sink) and i!=source:
+            for suc in big_PPI.successors(i):
+                #print 'Edge capacity from '+i+' to '+suc+' is '+str(float(other_node_caps[i]))
+                file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
+
     for treat in big_PPI.predecessors(sink):
         file.write('\"'+treat+'\" \"'+sink+'\"\t'+str(float(big_PPI.get_edge_data(treat,sink)['weight'])/(total_sink_weights))+'\n')	
         if usetargetcapacity:
@@ -664,7 +724,9 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
                 if (neighbors!=sink):
                     weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
                     if weight >= cap:
+                        print 'Capped ('+str(cap)+') weight: '+protein+' '+neighbors+' '+str(weight)
                         weight=cap
+
                     if weight ==0:
                         print "zero weight: "+protein +' '+neighbors
                     
@@ -681,16 +743,16 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
     file.close()
 
 
-def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',debug=False):
+def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
 #    print de_cap
-    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,debug)        
+    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
 
     writechangeflow(output,gamma)
     # create ampl file
     writeamplfile(output,solver)
 
-def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',debug=False):
-    write_mcf_datfile(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,debug)
+def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+    write_mcf_datfile(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
     write_mcf_changeflow(output,gamma)
     write_mcf_amplfile(output,solver)
 

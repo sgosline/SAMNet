@@ -37,6 +37,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
     siffile2 = open(wholename+'_tf_2_mrna.sif', 'w')
     siffile3=open(wholename+'_all.sif','w')
     siffile4=open(wholename+'_mcfs.sif','w')
+    siffile5 = open(wholename+'_no_mrna_mcfs.sif', 'w')
 
     ##create specific sif files for each commodity.  then can run in cytoscape with existing noa and eda files
     comm_sif_files=dict()
@@ -141,6 +142,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             siffile1.write(tprot1+'\t'+'pm'+'\t'+tprot2+'\n')
             siffile3.write(tprot1+'\t'+'pm'+'\t'+tprot2+'\n')
             siffile4.write(tprot1+'\t'+comm+'\t'+tprot2+'\n')
+            siffile4.write(tprot1+'\t'+comm+'\t'+tprot2+'\n')
             attrfile1.write(tprot1+' (pm) '+tprot2+' = '+flow+'\n')
             attrfile5.write(tprot1+' ('+comm+') '+tprot2+' = '+flow+'\n')
             #if the phenotypic/mirna hit is indeed an mrna, make it a diamond
@@ -162,6 +164,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             siffile1.write(prot1+'\t'+'pp'+'\t'+prot2+'\n')
             siffile3.write(prot1+'\t'+'pp'+'\t'+prot2+'\n')
             siffile4.write(prot1+'\t'+comm+'\t'+prot2+'\n')
+            siffile5.write(prot1+'\t'+comm+'\t'+prot2+'\n')
             attrfile1.write(prot1+' (pp) '+prot2+' = '+flow+'\n')
             attrfile5.write(prot1+' ('+comm+') '+prot2+' = '+flow+'\n')
             attrfile6.write(prot1+' ('+comm+') '+prot2+' = pp\n')
@@ -324,7 +327,7 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
         identifier_matching.parseAttrFileFromStringToGeneName(open(output_file+'_edge_commodity.eda','r'),output_file+'_edge_commodity_symbol.eda',idfile)
         identifier_matching.parseAttrFileFromStringToGeneName(open(output_file+'_edge_type.eda','r'),output_file+'_edge_type_symbol.eda',idfile)
 
-        identifier_matching.pareTabFileFromStringToGeneName(open(output_file+'_node_comm_flow.noa','r'),output_file+'_node_comm_flow_symbol.noa',idfile)
+        identifier_matching.parseTabFileFromStringToGeneName(open(output_file+'_node_comm_flow.noa','r'),output_file+'_node_comm_flow_symbol.noa',idfile)
 
 ##created new function for node attributes
         identifier_matching.parseNodeAttrFileFromStringToGeneName(open(output_file+'_node_type.noa','r'),output_file+'_node_type_symbol.noa',idfile,True)
