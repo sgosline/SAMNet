@@ -1,4 +1,0 @@
-fixed	HC
-snail	S
-tgfb	T
-zeb1	Z
