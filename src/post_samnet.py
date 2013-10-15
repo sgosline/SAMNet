@@ -199,7 +199,8 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
                 flows.add(prot2)
-                
+	elif prot2==sink and 'mrna' not in prot1:
+            tfs.add(prot1)
 
       #  elif prot2==sink and 'treatment' not in prot1::
       #      if 'mrna' not in prot1:# and prot1 not in tfs:
@@ -215,7 +216,15 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
     for prot in allprots:
         attrstring=prot+' = '
         if prot in tfs:
-            attrstring+='transcriptionfactor'
+            if 'H3K27ac' in prot:
+                histone='H3K27ac'
+            elif 'H3K4me3' in prot:
+                histone='H3K4me3'
+            elif 'H3K36me3' in prot:
+                histone='H3K36me3'
+            else:
+                histone=''
+            attrstring+=histone+'transcriptionfactor'
         if prot in mrnas:
             attrstring+='mrna'
         if prot in phens:

@@ -81,10 +81,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
         comm_weights[re.sub('_treatment','',c)]=big_PPI.get_edge_data(source,c)['weight']
    # print comm_weights
 
-  #  phenres=[p for p in phenres if p in big_PPI.nodes()]
-  #  directres=[p for p in directres if p in big_PPI.nodes()]
-  #  trares=[p for p in trares if p in big_PPI.nodes()]
-  #  print directres
+
     #first let's get a handle on the commodities
     com_sources=big_PPI.successors(source)
     commodity_names=[]
@@ -221,12 +218,13 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
                 mval=max(other_node_caps[node],node_caps[comm][node])
             else:
                 mval=node_caps[comm][node]
+            other_node_caps[node]=mval
 
     ##now write all to file
     for i in other_node_caps.keys():
-        if i not in all_tra_caps.keys() and i!=source:
-            for suc in networkx.successors(i):
-                file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
+        if i not in all_tra_caps.keys() and i!=source and i in big_PPI.nodes():
+            for suc in big_PPI.successors(i):
+                file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
                 
     file.write(';\n')
 

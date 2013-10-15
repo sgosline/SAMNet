@@ -725,9 +725,17 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
                     final_mcf_node_type.append(p1+' = mrna\n')
                     combined_mcf_node_type.append(p1+' = mrna\n')
                 if 'H3K' in p1:
+                    if 'H3K4me3' in p1:
+                        histone='H3K4me3'
+                    elif 'H3K27ac' in p1:
+                        histone='H3K27ac'
+                    elif 'H3K36me3' in p1:
+                        histone='H3K36me3'
+                    else:
+                        histone=''
                     node_type_list.append(p1)
-                    final_mcf_node_type.append(p1+' = transcriptionfactor\n')
-                    combined_mcf_node_type.append(p1+' = transcriptionfactor\n')
+                    final_mcf_node_type.append(p1+' = '+histone+'transcriptionfactor\n')
+                    combined_mcf_node_type.append(p1+' = '+histone+'transcriptionfactor\n')
 
 
     #first handle node flow commodities
