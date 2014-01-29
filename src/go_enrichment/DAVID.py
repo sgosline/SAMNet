@@ -9,14 +9,11 @@ import re,sys,os
 from optparse import OptionParser
 from collections import defaultdict
 
-sys.path.append("/nfs/lasdata/sgosline/PythonClient")
-sys.path.append("/nfs/lasdata/sgosline/PythonClient/tests")
-
 
 # import ChartReport
 
 ##use uniprot dict
-uniprot_map='/nfs/lasdata/sgosline/uniprotInteractomes/uniprot-%28organism%3A-Homo+sapiens-%29+AND+reviewed%3Ayes.tab'
+uniprot_map='/usr/local/apachedocs/htdocs/samnetwebhome/sample_data/uniprot-human.tab'
 up_dict=defaultdict(list)
 for row in open(uniprot_map,'r').readlines()[1:]:
 	arr=row.strip().split('\t')
@@ -145,8 +142,9 @@ def getGenesFromCytoscapeEDAFile(filename):
 	    arr=row.strip().split(' ')
 	    if ('S1' not in arr) and ('T1' not in arr):
 		nonsourcesink.append(arr)
-		genes[arr[1]].append(arr[0])
-		genes[arr[1]].append(arr[2])
+                comm=arr[1].strip('(').strip(')')
+		genes[comm].append(arr[0])
+		genes[comm].append(arr[2])
 	    else:
 		sourcesink.append(arr)
 
@@ -172,21 +170,21 @@ def getGenesFromCytoscapeEDAFile(filename):
 	print 'Got '+str(len(mapped.values()))+' up ids from '+str(len(genes.values()))+' and missed '+','.join(missed)+' with a bg size of '+str(len(bg))
 	return mapped,bg        	
 
-def callDavidCommand(genelist,listname):
+def callDavidCommand(genelist,listname,daviddir):
 	'''
 	do i need this?
 	'''
-	cmd='python /nfs/lasdata/sgosline/PythonClient/DAVIDWebService_Client.py --listName='+listname+' '+','.join(genelist)
+	cmd='python '+daviddir+'/DAVIDWebService_Client.py --listName='+listname+' '+','.join(genelist)
 	print cmd
 	os.system(cmd)
 
 
-def doEnrichment(genefile,listname,bgfile,bgname='',idType='OFFICIAL_GENE_SYMBOL'):
+def doEnrichment(genefile,listname,bgfile,bgname='',idType='OFFICIAL_GENE_SYMBOL',daviddir=''):
 	categories='GOTERM_BP_FAT,GOTERM_MF_FAT,GOTERM_CC_FAT,BBID,BIOCARTA,COG_ONTOLOGY,INTERPRO,KEGG_PATHWAY,OMIM_DISEASE,PIR_SUPERFAMILY,SMART,SP_PIR_KEYWORDS,UP_SEQ_FEATURE'
 	if bgfile=='':
-		cmd='python /nfs/lasdata/sgosline/PythonClient/ChartReport.py --idType='+idType+' --listName='+listname+' '+genefile
+		cmd='python '+daviddir+'/ChartReport.py --idType='+idType+' --listName='+listname+' '+genefile
 	else:
-		cmd='python /nfs/lasdata/sgosline/PythonClient/ChartReport.py --idType='+idType+' --listName='+listname+' '+genefile+' '+bgfile
+		cmd='python '+daviddir+'/ChartReport.py --idType='+idType+' --listName='+listname+' '+genefile+' '+bgfile
 	print cmd
 	os.system(cmd)
 
@@ -201,9 +199,10 @@ def main():
 	parser.add_option('--thresholdValue',dest='thresholdValue',type='float',default='0.1',help='Threshold less than value'
 	)
 	parser.add_option('--outputDir',dest='outputDir',type='string',default='./',help='Directory for output chartReport and xls file')
-
 					  
 	opts,args=parser.parse_args()
+        daviddir=os.path.dirname(sys.argv[0])
+	print daviddir
 	
 	## Check if output directory exists ##
 	try:
@@ -286,10 +285,10 @@ def main():
   
 	if(bgfile==''):
 		for fname in flist:
-			doEnrichment(os.path.realpath(fname),opts.listName,bgfile,bgname,idType=idtype)
+			doEnrichment(os.path.realpath(fname),opts.listName,bgfile,bgname,idType=idtype,daviddir=daviddir)
 	else:
 		for fname in flist:
-			doEnrichment(os.path.realpath(fname),opts.listName,os.path.realpath(bgfile),bgname,idType=idtype)
+			doEnrichment(os.path.realpath(fname),opts.listName,os.path.realpath(bgfile),bgname,idType=idtype,daviddir=daviddir)
 			
 	## Collect Sig DAVID Terms ##
 	davidfiles=[f for f in os.listdir(opts.outputDir) if 'chartReport' in f]
