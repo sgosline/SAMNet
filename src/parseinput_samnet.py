@@ -35,7 +35,24 @@ def get_weights_phen_source(phendatadict):
     #keys of this dictionary will be all proteins from the genes of the phenotypic dataset
     return weights_source
 
+def by_comm_into_one_dict(argument_file_containing_comm):
+    '''
+    Takes multiple file arguments but parses them into separate elements of a dictionary
+    New function for multi-source
+    '''
+    argument = argument_file_containing_comm
+        
+    lines=[line.strip() for line in open(argument)]
+    alldata=dict()
+    treats=set()
+    for l in lines:
+        arr=l.split('\t')
+        treats.add(arr[0])
+        if arr[0]+'_treatment' not in alldata:
+            alldata[arr[0]+'_treatment']=[]
+        alldata[arr[0]+'_treatment'].append(arr[1]+'\t'+arr[2])
 
+    return alldata,[a for a in treats]
 
 def get_direct_target_weights(targ_dict):
     '''

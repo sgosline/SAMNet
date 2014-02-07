@@ -40,6 +40,8 @@ def main():
 
     #############################################################
     ###INPUTs to flow network: phenotypic hits/indirect targets
+    parser.add_option("--proteinWeightsByComm", type="string", dest="prot_weights_comm", help="Phenotypic response file (if using genetic data). '.txt' format . Must contain column of treatments (commodities), column of *protein* names and column of weights, delimited by tab. For multiple treatments, only one file should be provided.",default='')
+
     parser.add_option("--proteinWeights", type="string", dest="prot_weights", help="Phenotypic response file (if using genetic data). '.txt' format . Must contain column of *protein* names and column of weights, delimited by tab. If multiple files are provided, they will be treated as different treatments and named following the list in --treatmentNames",default='')
     
     parser.add_option("--phen", type="string", dest="phenfile", help="DEPRECATED, please use --proteinWeights.  Phenotypic response file (if using genetic data). '.txt' format . Must contain column of *protein* names and column of weights, delimited by tab. If multiple files are provided, they will be treated as different treatments and named following the list in --treatmentNames",default='')
@@ -62,11 +64,14 @@ def main():
 
     ####Transcriptional response file, at this point only one
     parser.add_option("--tra", type="string",  dest="trafile", help="Transcriptional response file. \'.txt\' format. Must contain a column of differentially expressed genes by *gene name*, column of fold difference, and a column of p-values, delimited by tab. If multiple files will be used, enter these at the commandline, one after the other, separated by commas",default='')
- 
+
+    parser.add_option("--traByComm",type='string',dest='trafile_comm',help="Transcriptional response file. \'.txt\' format. Must contain a column of treatments (commodities), a column of differentially expressed genes by *gene name*, and a column of scores depicting how strong a weight should be placed on that mRNA (or instead, have a column of fold difference and a column of p-values), delimited by tab. For multiple treatments, only one file should be provided.",default='')
+
+    
     ##Use this option to exclude mRNA from network...
     parser.add_option('--nomrna',type='string',dest='no_mrna',help="Set to 'true' to remove mrna from network and calculate weights of transcription factors independently.  Will print out mrna network but not use it to calculate flow", default='False')
     ###AVOID ALL TF-mRNA interactions, or use some other format
-    parser.add_option("--rawTfData",type='string',default='',dest='raw_tf_data',help="OPTIONAL: set to file location of raw transcription factor weights. This option over-rides --tfmrna and --tra to provide new weights to a set of sink proteins")
+    parser.add_option("--rawTfData",type='string',default='',dest='raw_tf_data',help="OPTIONAL: set to file location of raw transcription factor weights. This option over-rides --tfmrna and --tra to provide new weights to a set of sink proteins. DEPRACATED: use noTfs flag")
 
     ################################################################
     
@@ -91,6 +96,7 @@ def main():
     parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names or \'humaniref\' to use human iref identifiers or \'mouseiref\' to use mouse genes mapped to human identifiers.",default='')
 
     parser.add_option('--hier-cap',action='store_true',dest='hier_cap',help='OPTIONAL: Set this flag to make capacities decrease by factor of 1/10^x where x is unweighted shortest path to Source.  WARNING: not tested for MCF yet.',default=False)
+    parser.add_option('--noTfs',action='store_true',dest='noTfs',default=False,help="OPTIONAL: Set this flag to take sink weights and directly connect them to protein interaction network without using a TF-DNA interaction network as intermediate.")
     
     ##more modifications, filter by tissue type
     parser.add_option('--expressedproteins',type='string',default='',dest='expr_prots',help='OPTIONAL: filters protein interaction network by protein identifiers provided in list. Best if drawn from mRNA Expression data for specific tissue, but also can be grabbed from gene atlas list of tissue-specific proteins')
@@ -102,6 +108,7 @@ def main():
 
     parser.add_option('--de_cap',dest='de_cap',type='string',default='sink',help='OPTIONAL: determines how to use differential expression as capacities.  DEFAULT setting is \'sink\' to use as only capacities from mRNA to sink.  When set to \'source\' SAMNet will use differential expression capacities on source to genetic hit data, and if set to \'all\' SAMNet will use differential expression capacities on all nodes')
 
+    parser.add_option('--amplPath',dest='ampl_path',type='string',default='/net/dorsal/apps/ampl/',help='Path to local ampl executable')
     (options, args) = parser.parse_args()
 
     print 'Running SAMNet...'
@@ -117,15 +124,22 @@ def main():
     else:
         direct_weights={}
 
-    ##now process indirect weights
-    indirect_weights=parseIn.get_weights_phen_source(parseIn.multiple_args_into_one_dict(options.prot_weights,options.treat_names))
+    ##now process indirect weights - those from source
+    if options.prot_weights!='':
+        indirect_weights=parseIn.get_weights_phen_source(parseIn.multiple_args_into_one_dict(options.prot_weights,options.treat_names))
+        tn=re.split(',',options.treat_names)
 
+    elif options.prot_weights_comm!='': 
+        # using one comprehensive phos files for all commodities
+        lf,tn=parseIn.by_comm_into_one_dict(options.prot_weights_comm)
+        indirect_weights=parseIn.get_weights_phen_source(lf)
+ 
 
     ##now process treatment weights -- either costs in single commodity case, or amount of flow in multi
     treat_weights={}
-    tn=re.split(',',options.treat_names)
+
     if len(tn)>0:
-        tnames=[b+'_treatment' for b in re.split(',',options.treat_names)] ##have to add _treatment' to everything to better annotate edges in cytoscape
+        tnames=[b+'_treatment' for b in re.split(',',options.treat_names)] ##have to add _treatment' to everything to better annotate edges in cytoscape    
    
     if len(options.treat_weights)>0:
         weight_vals=re.split(',',options.treat_weights)
@@ -166,7 +180,7 @@ def main():
     ############################TF->mRNA network###################################################
     print ".............protein-DNA and transcriptional data..................."
 
-    if options.tf_mrna_weights!='':
+    if options.tf_mrna_weights!='' and not options.noTfs:
         tf_string='Using tf-mRNA interactions from '+os.path.basename(options.tf_mrna_weights)
     else:
         tf_string='Not using any tf-MRNA interactions'
@@ -177,7 +191,14 @@ def main():
 
         weights_mRNA_to_sink = tfNetwork.get_weights_mRNA_sink(tradata,options.foldchange,options.upordown,addMrna=True)
         print 'mRNA data from: '+','.join(weights_mRNA_to_sink.keys())
+    elif options.trafile_comm!='':
+        tradata,ttn = parseIn.by_comm_into_one_dict(options.trafile_comm)
+        tf_mrna_weights_data = parseIn.multiple_args_into_one_list(options.tf_mrna_weights)    
+        weights_mRNA_to_sink = tfNetwork.get_weights_mRNA_sink(tradata,options.foldchange,options.upordown,addMrna=True)
+        print 'mRNA data from: '+','.join(weights_mRNA_to_sink.keys())
+
     elif options.raw_tf_data!='':
+        print "This option is depracated, just use --noTfs flag!"
         tradata = parseIn.multiple_args_into_one_dict(options.raw_tf_data,options.treat_names)
         tf_mrna_weights_data = parseIn.multiple_args_into_one_list(options.tf_mrna_weights)
                 
@@ -187,13 +208,6 @@ def main():
     #mRNA have 'mrna' appended in their names
     #remember the transcriptional graph
     graph_tr = tfNetwork.get_transcriptional_network(transcriptional_network_weight_data=tf_mrna_weights_data,addmrna=True,expressed_prot_list=[],doUpper=(options.updateIds in ['human','mouse','yeast']))
-
-
-    if options.no_mrna=='True':
-        tf_string=tf_string+' But calculating TF weights and leaving mRNA out of network'
-        final_weights=tfNetwork.tf_weights_hypergeometric(graph_tr,weights_mRNA_to_sink,options.updateIds)
-    else:
-        final_weights=weights_mRNA_to_sink
 
     
     print tf_string
@@ -219,26 +233,11 @@ def main():
     ############################Hierarchical Network capacities######### ###########################
     node_caps=defaultdict(dict)## dictionary of all nodes for each commodity
     
-    if hier_cap:
-        print '...............Setting capacities by distance from source...............'
-    ##create shortest-distance network for each commodity to avoid unecessary shortcuts
-        for node in PPI_with_weights.nodes():
-            for treat in indirect_weights.keys():
-                if node!=treat and node!=treat+'_sink':
-                    spdist=1.0
-                    try:
-                        spdist=networkx.shortest_path_length(PPI_with_weights,treat,node,None)
-                    except networkx.exception.NetworkXNoPath:
-                        continue
-                    node_cap=power(10.0,float(spdist)*-1.0)
-            #print node+' '+treat+' '+str(spdist)+' '+str(cap)
-                      #  if spdist>1:
-                      #      print node
-                node_caps[treat][node]=node_cap
-        
-    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=final_weights,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,debug=options.debug,rawTf=options.raw_tf_data,noMrna=options.no_mrna,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=options.mcf,makeCombined=options.make_combined,node_caps=node_caps)
 
-def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights,output,updateIds,cap=0.7,gamma=8,solver='loqo',debug=False,rawTf='',noMrna='False',treat_weights=dict(), diff_ex_vals=dict(),de_cap='sink',doMCF=False,makeCombined=False,node_caps={}):
+        
+    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=weights_mRNA_to_sink,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,ampl_path=options.ampl_path,debug=options.debug,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=options.mcf,makeCombined=options.make_combined,node_caps=node_caps,add_in_hier=options.hier_cap)
+
+def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights,output,updateIds,cap=0.7,gamma=8,solver='loqo',ampl_path='',debug=False,noTfs=False,treat_weights=dict(), diff_ex_vals=dict(),de_cap='sink',doMCF=False,makeCombined=False,node_caps={},add_in_hier=True):
 #    print de_cap
     
     '''
@@ -247,7 +246,7 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     indirect_weights**: dictionary of dictionaries of protein indentifiers as keys with values being their weights
     direct_weights:** dictionary of dictionaries (empty if only indirects are used) containing gene names as keys with values as their weights
     graph_tf: networkx digraph of transcriptional network with weights on the edges
-    mrna_weights**: dictionary of mRNA weights to sink, or tf weights if raw_tf_file was supplied
+    mrna_weights**: dictionary of mRNA weights to sink, or tf weights if noTfs flag was used
     output: outputstring to be used for files
     updateIds: species with which to update the protein network
 #    expr: name of expression file for post-processing
@@ -255,11 +254,11 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
     gamma: default gamma
     solver: default solver
     debug: set to True for extra info
-    rawTf: name of file used to derive raw TF weights, only used to explain tf-connections..
-    noMrna: string set to 'True' if mRNA is replaced with TFs linked to sink
+
+    noTfs: set to true if the transcriptional network should be ignored and mrnaweights be linked directly to ppi
     diff_ex_vals: dictionary of differential expression values
     de_cap: set to 'source' or 'all' if you want to add diff_ex_vals-based capacities
-    hier_cap: Set this flag to set hierarchical capacities (1/10^x where x is unweighted sp to source)
+    add_in_hier: Set this flag to set hierarchical capacities (1/10^x where x is unweighted sp to source), will populate node_caps for you
     ** -> These dictionaries are modified by the method, so be sure to pass in copies.
 nn    
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
@@ -330,7 +329,7 @@ nn
     ##the transcriptional data to be included in the graph -
     ##only the mRNA which is contained in the transcriptional network
     trares = []
-    if noMrna=='True' or rawTf!='':  ##theis just means that mRNA weights are actually tf weights
+    if noTfs:  ##theis just means that mRNA weights are actually tf weights
         for treat in mrna_weights.keys():
             for x in mrna_weights[treat].keys():
                 if PPI_with_weights.has_node(x):
@@ -343,7 +342,7 @@ nn
                 #        trares.append(x)
                 else:
                     mrna_weights[treat][x]==0.0
-        print "how many selected transcription factors are linked to the protein interaction network"
+        print "how many direct sink weights are linked to the protein interaction network"
         print(len(trares))
     else:
         for treat in mrna_weights.keys():
@@ -364,7 +363,7 @@ nn
             count_tra+=1
             trasInInteractome.write(x+'\n')
         trasInInteractome.write("not in interactome \n")
-        if(noMrna=='False' and rawTf==''):
+        if noTfs:
             for treat in mrna_weights.keys():
                 for x in mrna_weights[treat].keys():
                     if x not in trares:
@@ -434,29 +433,41 @@ nn
     
     #transcription factors are already in the interactome
     #only the mRNA from the transcriptional data is inserted into the PPI, the rest of the mRNA (which would also be connected to the existing transcriptional factors is not relevant for the solution (so we don't add it, so we don't waste memory)
-        if(noMrna=='False' and rawTf==''):
-        #for each mRNAa
-            for mrna_node in trares:
-                 #find all nodes (TF) that point to that mRNA in the transcriptional network
-                 neigh=graph_tr.predecessors(mrna_node)
-                 #select neighbours of that mRNA that are not themselves mRNAs (so, they are TF involved in the production of the mRNA)
-                 neigh1=[x for x in neigh if 'mrna' not in x]
-                 #connect each of these neighbours to the mRNA and add the corresponding
-                 #weight from the transcriptional networ
-                 for tf in neigh1:
-                     if PPI_with_weights.has_node(tf):
-                         weight = graph_tr.get_edge_data(tf,mrna_node)['weight']
-                         if weight>0.0:
-                             PPI_with_weights.add_edge(tf, mrna_node,{'weight':weight})
+        for mrna_node in trares:
+            #find all nodes (TF) that point to that mRNA in the transcriptional network
+            neigh=graph_tr.predecessors(mrna_node)
+            #select neighbours of that mRNA that are not themselves mRNAs (so, they are TF involved in the production of the mRNA)
+            neigh1=[x for x in neigh if 'mrna' not in x]
+            #connect each of these neighbours to the mRNA and add the corresponding
+            #weight from the transcriptional networ
+            for tf in neigh1:
+                if PPI_with_weights.has_node(tf):
+                    weight = graph_tr.get_edge_data(tf,mrna_node)['weight']
+                    if weight>0.0:
+                        PPI_with_weights.add_edge(tf, mrna_node,{'weight':weight})
                          
-        ##write files, then execute
-#        makeCombined=True ##remove this later
 
         ##only add capacities on targets if 
-        if len(mrna_weights)>1 and not doMCF:
+        if len(mrna_weights)>1 and not doMCF: ##parameter not used for MCF
             target_cap=True
         else:
             target_cap=False
+        
+        ##now add in hierarchical capacities if we didn't already do so
+        if add_in_hier and len(node_caps)==0:
+            print '...............Setting capacities by distance from treatment...............'
+            ##create shortest-distance network for each commodity to avoid unecessary shortcuts
+            for node in PPI_with_weights.nodes():
+                for treat in indirect_weights.keys():
+                    if node!=treat and node!=treat+'_sink' and node!=sink:
+                        spdist=1.0
+                        try:
+                            spdist=networkx.shortest_path_length(PPI_with_weights,treat,node,None)
+                        except networkx.exception.NetworkXNoPath:
+                            continue
+                        node_cap=power(10.0,float(spdist)*-1.0)
+                        node_caps[treat][node]=node_cap
+
         single_comms=[]
         sources,sinks=[],[]
             
@@ -478,9 +489,11 @@ nn
             ##now run multi commodity
             print "Writing MCF version of SAMNet files"
             output+='multiComm'
-            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+#            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+            wf.write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         else:
-            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+#            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+            wf.write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         
         #execute loqo
         single_comms.append(output)
@@ -490,7 +503,7 @@ nn
             out=single_comms[i]
             source=sources[i]
             sink=sinks[i]
-            cmd='/net/dorsal/apps/ampl/ampl'
+            cmd=ampl_path+'ampl'
             args=out+".ampl"
     #cmd='ampl '+ Dirname+gene+".ampl"
             print 'Running '+solver+': '+time.asctime(time.localtime())
@@ -503,17 +516,20 @@ nn
             #            os.system(cmd)
             print 'Finished '+solver+': '+time.asctime(time.localtime())+' with return code '+str(retcode)
         ##call the post processing module to update the files
-            if out==output: ##then we respect the original assignment
-                flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
-            else: ##otherwise we need to treat this as a non mcf
-                flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
+            if os.path.exists(out+'.txt'):
+                if out==output: ##then we respect the original assignment
+                    flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,doMCF)
+                else: ##otherwise we need to treat this as a non mcf
+                    flow,node_flow,comm_flow,phens,prots,tfs,mrnas=post.process_output(out,source,sink, updateIds,debug,diff_ex_vals,False)
+                if flow>0.0:
+            ##now output expression analysis
+                    basename=out
+                    noa='.noa'
+                    if updateIds!='':
+                        noa='_symbol.noa'
+            else:
+                print 'Flow was 0, no output file created' ##NEED ERROR PROCESSING HERE
 
-            if flow>0.0:
-        ##now output expression analysis
-                basename=out
-                noa='.noa'
-                if updateIds!='':
-                    noa='_symbol.noa'
                 
 
 

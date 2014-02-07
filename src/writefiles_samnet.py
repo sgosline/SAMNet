@@ -65,7 +65,8 @@ def write_mcf_changeflow(wholename,gamma):
     file.close()
 
               
-def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
+#def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
+def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
 #    print 'Writing mcf file'
     '''
     This is similar to the writedat file with multiple sources and sinks, but 
@@ -81,7 +82,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sin
         comm_weights[re.sub('_treatment','',c)]=big_PPI.get_edge_data(source,c)['weight']
    # print comm_weights
 
-
+    directres=[]
     #first let's get a handle on the commodities
     com_sources=big_PPI.successors(source)
     commodity_names=[]
@@ -741,16 +742,20 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
     file.close()
 
 
-def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+#def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+def write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
 #    print de_cap
-    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
+    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
+#    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
 
     writechangeflow(output,gamma)
     # create ampl file
     writeamplfile(output,solver)
 
-def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
-    write_mcf_datfile(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
+#def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+def write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+#    write_mcf_datfile(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
+    write_mcf_datfile(PPI_with_weights,trares,phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
     write_mcf_changeflow(output,gamma)
     write_mcf_amplfile(output,solver)
 

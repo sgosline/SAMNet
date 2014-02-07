@@ -28,6 +28,9 @@ def main():
 	ppi=config.get('Samnet','ppi')
 	protweights=config.get('Samnet','protweights')
 	mrna=config.get('Samnet','mrna')
+        tfweights=config.get('Samnet','tfweights')
+        hiercap=config.get('Samnet','hiercap')
+        amplpath=config.get('Samnet','amplpath')
 
 	##these are the parameters necessary to run the script properly
 	outputdir=config.get('Server','outputdir')
@@ -35,8 +38,15 @@ def main():
 
 	davidthresh=config.get('David','threshold')
 	
+	if tfa is not None:
+    		pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --amplPath='+amplpath+' --tfmrna='+tfa+' --output='+outputdir+'/results/samnetout --updateIds=humaniref'
+        elif tfweights!='':
+         	pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --noTfs --amplPath='+amplpath+' --updateIds=humaniref --output='+outputdir+'/results/samnetout'
 
-	pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --tfmrna='+tfa+' --output='+outputdir+'/results/samnetout'
+    	if hiercap=='on':
+        	pythonstr+=' --hier-cap'
+
+        
 	##now write scrip
         davidstr='python '+pythondir+'/go_enrichment/DAVID.py --outputDir='+outputdir+'/results --listName=samnet --thresholdValue='+davidthresh+' '+outputdir+'/results/samnetoutmultiComm_edge_commodity.eda'
 

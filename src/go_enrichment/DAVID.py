@@ -13,7 +13,8 @@ from collections import defaultdict
 # import ChartReport
 
 ##use uniprot dict
-uniprot_map='/usr/local/apachedocs/htdocs/samnetwebhome/sample_data/uniprot-human.tab'
+uniprot_map=os.path.join(os.path.dirname(sys.argv[0]),'../../lib/uniprot-human.tab')
+#print uniprot_map
 up_dict=defaultdict(list)
 for row in open(uniprot_map,'r').readlines()[1:]:
 	arr=row.strip().split('\t')
@@ -22,9 +23,22 @@ for row in open(uniprot_map,'r').readlines()[1:]:
 		up_dict[a]=arr[0]
 		
 		
-#from tests import *
-#from suds import *
-#import logging
+
+def getGenesFromTxtFile(filename):
+    '''
+    gets genes from text file
+    '''
+    genes=[arr.strip() for arr in open(filename,'r').readlines()]
+    mapped,missed=[],[]
+    for g in genes:
+        if g in up_dict.keys():
+            mapped.append(up_dict[g])
+        else:
+            missed.append(g)
+    print 'Got '+str(len(mapped))+' up ids from '+str(len(genes))+' and missed '+','.join(missed)
+    return mapped
+
+
 def getGenesFromCuffDiffFile(filename,pvalue=0.01):
 	'''
 	gets gene list from cuffdiff file
@@ -250,16 +264,24 @@ def main():
 			fname=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_'+mir+'_genes.txt'
 			flist.append(fname)
 			open(fname,'w').writelines([g+'\n' for g in genes[mir]])
-	
-	
+        elif opts.listType=='TXT':
+        	genes=getGenesFromTxtFile(args[0])
+        	idtype='UNIPROT_ACCESSION'
+	        fname=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_genes.txt'
+		open(fname,'w').writelines([g+'\n' for g in genes])
+        	flist=[fname]
+
+
 	if len(args)>1:
 		if opts.listType=='MISO':
 			bggenes=getGenesFromMisoParsedFile(args[1])
-
+        	elif opts.listType=='TXT':
+            		bggenes=getGenesFromTxtFile(args[1])
 		else:
 			bggenes=getGenesFromCuffDiffFile(args[1])
 
 		bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
+		open(bgfile,'w').writelines([b+'\n' for b in bggenes])
 		bgname='background'
 
 	elif opts.listType=='APCLUSTER': #we have defacto background

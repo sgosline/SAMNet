@@ -27,11 +27,37 @@ def title_html(outdir):
     This creates the title frame, pretty basic so far
     '''
     file = open(outdir+'/title.html','w')
-    file.writelines("""<center><h2><a href="http://fraenkel.mit.edu/samnetweb/" target="_parent">S A M N E T</a></h1></center>""")
-    file.writelines("""<center><h3>A multi-commodity flow-based data integration tool</h3></center>""")
+    file.writelines("""<center><h2><a href="http://fraenkel.mit.edu/samnetweb/" target="_parent">S A M N E T</a></h2></center>""")
+    file.writelines("""    <link rel="stylesheet" type="text/css" href="../../../main.css">\n""")    
+
+    file.writelines("""    
+      <style type="text/css">
+      div.section {
+        margin: 0 auto 20px auto;
+        width: 60%;
+        padding-left: 80px;
+        border-top: 1px solid #cbcbcb;
+        font-family: Verdana;
+      }
+
+      div.last {
+        border-bottom: 1px solid #cbcbcb;
+        padding-bottom: 20px;
+      }
+
+      textarea {
+        vertical-align: middle;
+      }
+
+      div.options {
+        margin-left: 40px;
+      }
+    </style>
+    """)
+    file.writelines("""<center><h4>A multi-commodity flow-based data integration tool</h4></center>""")
     file.close()
 
-def summary_html(outdir):
+def summary_html(outdir,comcolors):
     '''
     This creates the summary panel to the right with all the run-specific details
     '''
@@ -68,8 +94,9 @@ def summary_html(outdir):
     <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">\n
     <html><head>
     <title>Cytoscape Controls</title>
+    <link rel="stylesheet" type="text/css" href="../../../main.css">
 
-
+    </style>
 
     <script type="text/javascript" src="http://www.google.com/jsapi"></script>
     <script type="text/javascript">
@@ -130,36 +157,48 @@ def summary_html(outdir):
     </script>
 </head>
     <body >
-<center><h3>Legend for the Network Visualization</h3><img src="../../../Legend.png" height="150" width="225"/><br></center>
+<h1>   </h1>
+<center><h1>Network Legend</h1><br>
+   <table><tr><td colspan="2"><center><h3>Edge commodities</h3></center></td></tr>
+        """%(tindex,nontindex,mrnatindex,mrnanontindex))
+    ##add in colors here
+    for comm in comcolors.keys():
+        file.writelines('<tr><td><h4>'+comm+':</h4></td><td> <font color="'+comcolors[comm]+'">----------------</font></td></tr>\n')
+    file.writelines("""
+    <tr><td colspan="2"><center><h3>Node Types</h3></center></td></tr>
+    <tr><td colspan="2">
+        <img src="../../../Legend.png" height="150" width="225"/>
+</td></tr>
+   </table></center>
 
+<center>
+<h1>  </h1>
+<h1>Result Summary</h1>
 <table>
-<tr><td><h3>Input Data</h3>
-<tr><td>
+<tr><td><h2>Input files</h2>
     <a href="../data/proteinWeights" >Protein weights inputs</a><br/>
     <a href="../data/exp" >mRNA expression inputs</a><br/>
     <a href="../data/tf2gene" >Transcription Factor to DNA interaction file</a>
     <br/><a href="../data/interactome" >Protein-Protein Interaction PKL file</a><br/>
 </td></tr>
-<tr><td><h3>Output Files</h3>
-    <a href="samnetoutmultiComm_mcfs_symbol.sif">Download SAMNet network in SIF format (Cytoscape) </a><br/>
-    <a href="samnetoutmultiComm_edge_commodity_symbol.eda">Download Edge Flow values </a><br/>
-    <a href="samnetoutmultiComm_edge_type_symbol.eda">Download Edge Type values </a><br/>
-    <a href="samnetoutmultiComm_node_flow_symbol.noa">Download Node Flow values </a><br/>
-    <a href="samnetoutmultiComm_node_type_symbol.noa">Download Node Type values </a><br/>
-    <a href="../samnet_CYTOEDA_Benjamini_1.0_sigDavidTerms.xls">Download DAVID terms for each commodity</a><br/></td></tr>
-</table>
-    
-    <h3>Input nodes in the Solution</h3><center>
-<table><tr><td>
+<tr><td><h2>Output Files</h2>
+    <a href="samnetoutmultiComm_mcfs_symbol.sif">SAMNet network in SIF format (Cytoscape) </a><br/>
+    <a href="samnetoutmultiComm_edge_commodity_symbol.eda">Edge Flow values </a><br/>
+    <a href="samnetoutmultiComm_edge_type_symbol.eda">Edge Type values </a><br/>
+    <a href="samnetoutmultiComm_node_flow_symbol.noa">Node Flow values </a><br/>
+    <a href="samnetoutmultiComm_node_type_symbol.noa">Node Type values </a><br/>
+    <a href="../samnet_CYTOEDA_Benjamini_1.0_sigDavidTerms.xls">DAVID terms for each commodity</a><br/></td></tr>
+<tr><td> <h2>Input found in Solution</h2></td></tr>
+<tr><td>
   <div id="visualization" style="width: 300px; height: 200px;"></div>
 </td>
 </tr>
 <tr><td>
   <div id="visualizationdna" style="width: 300px; height: 200px;"></div>
 </td></tr>
-</table>
+</table></center>
     </body></html>
-""" %(tindex,nontindex,mrnatindex,mrnanontindex))
+""" )
 
     file.close()
 
@@ -182,22 +221,22 @@ def get_html_filename(outdir,input_filename):
 
 
 ##here are the basic files we need
-symbol='_symbol' ##set to '' if there are no symbols
+#symbol='_symbol' ##set to '' if there are no symbols
 
 #input_filename='samnetoutmultiComm'
-def get_sif_filename(outdir,input_filename):
+def get_sif_filename(outdir,input_filename,symbol):
     return os.path.join(outdir,input_filename+'_mcfs'+symbol+'.sif')
 
-def get_node_flow_noa_filename(outdir,input_filename):
+def get_node_flow_noa_filename(outdir,input_filename,symbol):
     return os.path.join(outdir,input_filename+'_node_flow'+symbol+'.noa')
 
-def get_node_type_noa_filename(outdir,input_filename):
+def get_node_type_noa_filename(outdir,input_filename,symbol):
     return os.path.join(outdir,input_filename+'_node_type'+symbol+'.noa')
 
-def get_edge_commodity_eda_filename(outdir,input_filename):
+def get_edge_commodity_eda_filename(outdir,input_filename,symbol):
     return os.path.join(outdir,input_filename+'_edge_commodity'+symbol+'.eda')
 
-def get_edge_type_eda_filename(outdir,input_filename):
+def get_edge_type_eda_filename(outdir,input_filename,symbol):
     return os.path.join(outdir,input_filename+'_edge_type'+symbol+'.eda')
 
 
@@ -231,14 +270,14 @@ def networkPrep(nodeDict, edgeDict):
     return stringstart
 
 def generateColors(commodities):
-    dozencolors=["#003366","#339933","#FFFF66","#FF9999","#9999FF","#66FFFF","#FF9933","#990000","#595959","#00FFFF","#CC9900","#996633"]
+    dozencolors=["#003366","#339933","#999911","#FF9999","#9999FF","#66FFFF","#FF9933","#990000","#595959","#00FFFF","#CC9900","#996633"]
     commdict={}
     for ind,c in enumerate(commodities):
         commdict[c]=dozencolors[ind % len(dozencolors)]
     return commdict
     
 
-def sifParser(outdir, input_filename):
+def sifParser(outdir, input_filename,symbol):
     nodeset = set()
     edgedict=defaultdict(list)
     ##i dont think i need these three files
@@ -247,12 +286,12 @@ def sifParser(outdir, input_filename):
     tf_file = get_tf_filename(outdir)
     
     ##this gets the symbol filename
-    siffile = get_sif_filename(outdir,input_filename)
+    siffile = get_sif_filename(outdir,input_filename,symbol)
     
     ##but we really need the edges and nodes by commodity
     #edge_comm_filename=get_edge_commodity_eda_filename(outdir,input_filename)
-    node_type_filename=get_node_type_noa_filename(outdir,input_filename)
-    node_flow_filename=get_node_flow_noa_filename(outdir,input_filename)
+    node_type_filename=get_node_type_noa_filename(outdir,input_filename,symbol)
+    node_flow_filename=get_node_flow_noa_filename(outdir,input_filename,symbol)
 
     ##first get edges, interaction types
     file = open(siffile).readlines()
@@ -293,11 +332,12 @@ def result_html_prepare(outdir):
     '''
     This is the main file, with the 3 inset frames
     '''
-    input_filename=os.path.join(outdir,'samnetoutmultiComm')
+    input_prefix='samnetoutmultiComm'
+    input_filename=os.path.join(outdir,input_prefix)
+    
+    resultfilename = get_html_result(outdir, input_prefix)
 
-    resultfilename = get_html_result(outdir, input_filename)
-
-    htmlfilename = os.path.basename(get_html_filename(outdir,input_filename))
+    htmlfilename = get_html_filename(outdir,input_prefix)
 
     resultfile = open(resultfilename,'w')
     resultfile.writelines("""
@@ -305,10 +345,10 @@ def result_html_prepare(outdir):
     <title>SAMNetWeb - Results</title>
     <frameset rows="10%,90%">
     <frame src="title.html" name="north" scrolling="no"/>
-    <frameset cols="70%,30%">
+    <frameset cols="68%,32%">
     """)
     ##now add in html filename
-    resultfile.write('<frame src="'+htmlfilename+'" name="center"/>\n')
+    resultfile.write('<frame src="'+os.path.basename(htmlfilename)+'" name="center"/>\n')
     ##now add in the rest
     resultfile.writelines("""
     <frame src="CytoscapeWebControls.html" name="east"/>
@@ -325,9 +365,14 @@ def html_prepare(outdir):
     '''
     This is the cytoscape plugin page
     '''
-    input_filename=os.path.join(outdir,'samnetoutmultiComm')
+    input_prefix='samnetoutmultiComm'
+    input_filename=os.path.join(outdir,input_prefix)
 
-    htmlfilename = get_html_filename(outdir,input_filename)
+    symbol='_symbol'
+    if not os.path.exists(input_filename+'_mcfs'+symbol+'.sif'):
+        symbol=''
+    
+    htmlfilename = get_html_filename(outdir,input_prefix)
 
 
     htmlfile = open(htmlfilename,'w')
@@ -336,6 +381,31 @@ def html_prepare(outdir):
 
     htmlfile.writelines("""    <head>\n""")
     htmlfile.writelines("""        <title>SAMNet Web Output Page</title>\n""")
+    htmlfile.writelines("""    <link rel="stylesheet" type="text/css" href="../../../main.css">\n""")   
+    htmlfile.writelines("""    
+      <style type="text/css">
+      div.section {
+        margin: 0 auto 20px auto;
+        width: 60%;
+        padding-left: 80px;
+        border-top: 1px solid #cbcbcb;
+        font-family: Verdana;
+      }
+
+      div.last {
+        border-bottom: 1px solid #cbcbcb;
+        padding-bottom: 20px;
+      }
+
+      textarea {
+        vertical-align: middle;
+      }
+
+      div.options {
+        margin-left: 40px;
+      }
+    </style>
+    """)
 #    htmlfile.writelines("""        <div id="cytoscapeweb" style="width:100%; height:100%;">\n""")
 #    htmlfile.writelines("""            Cytoscape Web will replace the contents of this div with your graph.\n""")
 #    htmlfile.writelines("""        </div>\n""")
@@ -356,9 +426,13 @@ def html_prepare(outdir):
 
     htmlfile.writelines("""                // you could also use other formats (e.g. GraphML) or grab the network data via AJAX\n""")
 
-    networkline,commodities = sifParser(outdir, input_filename)
-    htmlfile.writelines(networkline)
-    comcolors=generateColors(commodities)
+    if not os.path.exists(input_filename+'_mcfs'+symbol+'.sif'):
+        htmlfile.write("<h1>NO NETWORK CREATED, CHECK PARAMETERS AND TRY AGAIN</h1>")
+        comcolors={}
+    else:
+        networkline,commodities = sifParser(outdir, input_prefix,symbol)
+        htmlfile.writelines(networkline)
+        comcolors=generateColors(commodities)
     ##this describes the node types: source, protein, tf, mRNA
     htmlfile.writelines("""                var shapeMapper = {\n""")
     htmlfile.writelines("""                    attrName: "type",\n""")
@@ -451,18 +525,18 @@ def html_prepare(outdir):
 #        htmlfile.writelines(line)
     htmlfile.close()
 #    os.system("cat temphtml.txt > %s" % htmlfilename)
-    return htmlfilename
+    return htmlfilename,comcolors
 
 
 def main():
     ##no need for fancy config file parsing, all files have same name in result directory
     outputdir=sys.argv[1]
     print 'Preparing html network/cytoscape output in directory '+outputdir
-    html_prepare(outputdir)
+    htmlfile,comcolors=html_prepare(outputdir)
     print 'Preparing result.html'
     result_html_prepare(outputdir)
     print 'Preparing summary html'
-    summary_html(outputdir)
+    summary_html(outputdir,comcolors)
     print 'Preparing title html'
     title_html(outputdir)
 
