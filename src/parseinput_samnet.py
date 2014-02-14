@@ -45,14 +45,16 @@ def by_comm_into_one_dict(argument_file_containing_comm):
     lines=[line.strip() for line in open(argument)]
     alldata=dict()
     treats=set()
+    mrna=set()
     for l in lines:
         arr=l.split('\t')
         treats.add(arr[0])
         if arr[0]+'_treatment' not in alldata:
             alldata[arr[0]+'_treatment']=[]
         alldata[arr[0]+'_treatment'].append(arr[1]+'\t'+arr[2])
+        mrna.add(arr[1])
 
-    return alldata,[a for a in treats]
+    return alldata,[a for a in treats],[a for a in mrna]
 
 def get_direct_target_weights(targ_dict):
     '''

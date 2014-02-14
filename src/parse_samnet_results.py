@@ -27,34 +27,8 @@ def title_html(outdir):
     This creates the title frame, pretty basic so far
     '''
     file = open(outdir+'/title.html','w')
-    file.writelines("""<center><h2><a href="http://fraenkel.mit.edu/samnetweb/" target="_parent">S A M N E T</a></h2></center>""")
-    file.writelines("""    <link rel="stylesheet" type="text/css" href="../../../main.css">\n""")    
+    file.writelines("""<html><body><center><a href="http://fraenkel.mit.edu/samnetweb" target="_parent"><img src="../../../samnet/img/samnet_header.png"></a></center></body></html>""")
 
-    file.writelines("""    
-      <style type="text/css">
-      div.section {
-        margin: 0 auto 20px auto;
-        width: 60%;
-        padding-left: 80px;
-        border-top: 1px solid #cbcbcb;
-        font-family: Verdana;
-      }
-
-      div.last {
-        border-bottom: 1px solid #cbcbcb;
-        padding-bottom: 20px;
-      }
-
-      textarea {
-        vertical-align: middle;
-      }
-
-      div.options {
-        margin-left: 40px;
-      }
-    </style>
-    """)
-    file.writelines("""<center><h4>A multi-commodity flow-based data integration tool</h4></center>""")
     file.close()
 
 def summary_html(outdir,comcolors):
@@ -167,7 +141,7 @@ def summary_html(outdir,comcolors):
     file.writelines("""
     <tr><td colspan="2"><center><h3>Node Types</h3></center></td></tr>
     <tr><td colspan="2">
-        <img src="../../../Legend.png" height="150" width="225"/>
+        <img src="../../../samnet/img/legend.png" height="150" width="225"/>
 </td></tr>
    </table></center>
 
@@ -327,6 +301,54 @@ def sifParser(outdir, input_filename,symbol):
 
     return networkPrep(nodedict,edgedict), edgedict.keys()
 
+'''
+    <style>
+    .title {
+      width= 300;
+      height=30;
+    }
+    .graph {
+      width=250;
+      height=300;
+    }
+    .legend {
+      width=50;
+      height=300;
+    }
+   </style>
+'''
+def iframe_result_html_prepare(outdir):
+    '''
+    Added new HTML prepare file that doesn't use frames since they have been depracated.  
+    Fingers crossed!
+    '''
+    input_prefix='samnetoutmultiComm'
+    input_filename=os.path.join(outdir,input_prefix)
+    
+    resultfilename = get_html_result(outdir, input_prefix)
+
+    htmlfilename = get_html_filename(outdir,input_prefix)
+
+    resultfile = open(resultfilename,'w')
+    resultfile.writelines("""
+    <html>
+    <head>
+    <title>SAMNetWeb - Results</title>
+  </head>
+  <body>
+    <table>
+    <tr><td colspan=2>
+  <iframe class="title" src="title.html" height="350" width="100%" scrolling="no" seamless="yes"</iframe></td><tr>
+  """)
+    resultfile.writelines("""
+    <tr><td><iframe class="graph" src="'+os.path.basename(htmlfilename)+'" scrolling="no" width="80%"></iframe></td>
+    """)
+    resultfile.writelines("""
+    <td><iframe class="legend" src="CytoscapeWebControls.html" width="20%"></iframe></td></tr></table>
+    </body>
+    </html>
+    """)
+    resultfile.close()
 
 def result_html_prepare(outdir):
     '''
@@ -343,15 +365,15 @@ def result_html_prepare(outdir):
     resultfile.writelines("""
     <html>
     <title>SAMNetWeb - Results</title>
-    <frameset rows="10%,90%">
-    <frame src="title.html" name="north" scrolling="no"/>
+    <frameset rows="15%,85%">
+    <frame src="title.html" name="north" scrolling="no" frameborder="0"/>
     <frameset cols="68%,32%">
     """)
     ##now add in html filename
-    resultfile.write('<frame src="'+os.path.basename(htmlfilename)+'" name="center"/>\n')
+    resultfile.write('<frame src="'+os.path.basename(htmlfilename)+'" frameborder="0" name="center"/>\n')
     ##now add in the rest
     resultfile.writelines("""
-    <frame src="CytoscapeWebControls.html" name="east"/>
+    <frame src="CytoscapeWebControls.html" frameborder="0" name="east"/>
     </frameset>
     
     </frameset>

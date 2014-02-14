@@ -3,7 +3,7 @@ tfnetwork.py
 SAMNet module hadnles transcription factor -mRNA weights
 
 
-Copyright (c) 2012 Sara JC Gosline
+Copyright (c) 2012-2014 Sara JC Gosline
 sgosline@mit.edu
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -72,11 +72,13 @@ def get_transcriptional_dictionary(transcriptional_network_weight_data,expressed
 
     return tdict
  
-#moved this from response net
+
 def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True,lazy=True,expressed_prot_list=[],doUpper=True,score_thresh=0.0,renormalize=False):
+    '''
+    Primary code to parse transcriptional file into network object
+    '''
     #initialize graph 
-#    print 'upper: '+str(doUpper)
-#    transcription_graph = networkx.XDiGraph()
+
     transcription_graph = networkx.DiGraph()
     if len(transcriptional_network_weight_data)==0:
         print 'Empty TFA file, returning empty graph'
@@ -84,7 +86,7 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
     #get information fro the transcriptional network weight file (this is a list of all transcriptional network data)
     all_edge_weights=[]
     p300counts=0
-    p300ids=['EP300','Ep300','icrogid:820620', 'icrogid:4116836']
+    p300ids=['EP300','Ep300','icrogid:820620', 'icrogid:4116836','EP300_HUMAN']
     for item in transcriptional_network_weight_data:
         #list containing tf mRNA and weight
         list_tf_mrna_weight = item.split('\t')
@@ -234,59 +236,6 @@ def tf_weights_sum(tf_network,mrna_weights):
 
     return tf_with_incoming_norm_weights
 
-###REQUIRES RPY2 MODULE
-
-# #method 1: use hypergeometric to determine TFs that have more than expected diff-ex genes as targets
-# def tf_weights_hypergeometric(tf_network,mrna_weights,species='Mouse'):
-# #    if(species.lower()=='mouse'):
-#     TOTAL_MRNA=20459 #from the mouse affy chip, make this an option in the end
-# #    elif(species.lower()=='human'):
-# #        TOTAL_MRNA=16857 ##fill in this number, from grimson experiments (mirna)
-#     tf_weights={}
-#     tfs=[]
-#     for i in range(tf_network.number_of_nodes()):
-# #        if(tf_network.out_degree()[i]>0):
-#         if(tf_network.out_degree(tf_network.nodes()[i])>0):
-#             tfs.append(tf_network.nodes()[i])
-
-#     print 'Got '+str(len(tfs))+' tfs'
-#     hgvals=[]
-
-#     for t in tfs:
-#         #hyperg counts
-#         diffex_targets=0
-#         non_diffex_targets=0
-#         for i in tf_network[t]:
-#             if i in mrna_weights.keys():
-#                 diffex_targets=diffex_targets+1
-
-#             else:
-#                 non_diffex_targets=non_diffex_targets+1
-
-#         #other counts
-#         diffex_nontargets=len(mrna_weights.keys())-diffex_targets
-#         remainder=TOTAL_MRNA-diffex_nontargets-non_diffex_targets-diffex_targets
-#         #now calculate fishers test
-# #        print "Calculating pvalue for"+t
-#         hgvals.append(t+'\t'+str(diffex_targets)+'\t'+str(non_diffex_targets)+'\t'+str(diffex_nontargets)+'\t'+str(remainder)+'\n')
-
-#         pvalue=robjects.r('fisher.test(matrix(c('+str(diffex_targets)+','+str(non_diffex_targets)+','+str(diffex_nontargets)+','+str(remainder)+"),nrow=2),alternative='greater')$p.value")[0]
-#         if(pvalue==0.0):
-# #            print "pvalue is 0, setting to pseudocount"
-#             pvalue=0.000000001
-# #        else:
-# #            print 'pvalue is',str(pvalue)
-        
-#         print "TF "+t+' has pvalue of '+str(pvalue)+' and weight of '+str(-log(pvalue))
-        
-#         if(log(pvalue)==0.0 or log(pvalue)==-0.0):
-#         #    print 'log of '+str(pvalue)+' is 0.0, setting to pseudo count'
-#             tf_weights[t]=0.000000001
-#         else:
-#             tf_weights[t]=-log(pvalue)
-
-#     open('hg_pvals.txt','w').writelines(hgvals)
-#     return tf_weights
 
 
 #method 3: use any set of arbitrary weights on transcription factors
@@ -318,7 +267,143 @@ def print_weight_file(tf_weights,outputname):
         wfile.write(t+'\t'+str(tf_weights[t])+'\n')
     wfile.close()
 
+# Method to parse tfa weights from .tgm input file
+def getWeightsfromTG(tf_weight_file):
+    # search in same directory for tf and gene ids to pair with .tgm file
+    tgmbase = tf_weight_file.split('.tgm')[0]
+    gene_file = tgmbase+'_geneids.txt'
+    tf_file = tgmbase+'_tfids.txt'
 
+    scores = np.loadtxt(open(tf_weight_file,'r')) # will generate a list of lists where each entry corresponds to a tf (row)
+    tfs = [tf.split('\n')[0] for tf in open(tf_file,'r').readlines()]
+    gs = [gn.split('\n')[0].upper() for gn in open(gene_file,'r').readlines()] #convert to upper case to match mRNA
+
+    # combine tf and their scores
+    tf_scores = zip(tfs,scores)
+
+    # Loop through and first expand tf set based on multiple tfs in the same family, ex: EGR1_EGR2
+    tf_scores_expand=[]
+    for tfs,score in tf_scores:
+        if '_' in tfs: # In the case of a multi-tf family, break them up, change ids and give them the same score
+            alltfs=tfs.split('_')
+            for fam in alltfs:
+                tf_scores_expand.append((fam,score))
+        else:
+            tf_scores_expand.append((tfs,score))
+
+    # Find dictionary relative to script
+    fpath=os.path.dirname(os.path.abspath( __file__ ))
+    libpath=re.sub('src','lib',fpath)
+    midict=pickle.load(open(libpath+'/mouse_genename_to_9606mitabiref.pkl','r'))
+    # pull out only geneSym-> icrogid mappings and convert the keys to upper case
+    midictupper=dict([(name.upper(),midict[name]) for name in midict.keys() if 'icrogid' not in name])    
+    # Loop through and change identifiers
+    tf_scores_mi=[]
+    for tfs,score in tf_scores_expand:
+        if tfs in midictupper.keys():
+            tf_mi=midictupper[tfs]
+            for multid in tf_mi:
+                tf_scores_mi.append((multid,score))
+            
+    tf_mrna_weights = []
+    for tf,scorelist in tf_scores_mi:
+        gscor = zip(gs,scorelist) # zip the gene symbols with the columns of the t.f. arrays
+        for g,sc in gscor: # create a list format that will interface with the rest of SAMNET
+            tf_mrna_weights.append(str(tf)+'\t'+str(g)+'\t'+str(sc)+'\n')
+
+    # Return list of tab-delimited entries (tf gene weight)
+    return tf_mrna_weights
+
+# Method to parse tfa weights from .tgm input file
+def get_transcriptional_network_from_tgm(tgm,addmrna=True,expressed_prot_list=[],doUpper=False,score_thresh=0.0):
+    renormalize=False##legacy setting, keepf or now
+    # load in values from TGM
+    scores=tgm['matrix']
+    tfs=tgm['tfs']
+    gs=tgm['genes']
+    delim=tgm['delim']
+
+    # combine tf and their scores
+    tf_scores = zip(tfs,scores)
+
+    ##now initialize network
+    transcription_graph = networkx.DiGraph()
+    all_edge_weights=[] ##keep these for normalization
+    ##remove this
+    p300counts=0
+    p300ids=['EP300','Ep300','icrogid:820620', 'icrogid:4116836','EP300_HUMAN']
+
+    count=0
+    # Loop through and first expand tf set based on multiple tfs in the same family, ex: EGR1.EGR2
+    for tfs,score in tf_scores:
+        count+=1
+        if count%50==0:
+            print 'Processed '+str(count)+' of '+str(len(tf_scores))+' TF motif clusters.'
+            print '...tf network has '+str(len(transcription_graph.edges()))+' edges'
+        
+        if delim in tfs: # In the case of a multi-tf family, break them up
+            alltfs=tfs.split(delim)
+        else:
+            alltfs=[tfs]
+        for tf in alltfs:
+            if tf in p300ids or tf.upper() in p300ids:
+                p300counts+=1
+                continue
+            elif len(expressed_prot_list)>0 and tf not in expressed_prot_list:
+                continue
+            gscore=zip(gs,score)##zip each gene name to score vector
+            for g,sc in gscore:
+                if sc<=score_thresh:
+                    next
+                if doUpper:
+                    tf=tf.upper()
+                    g=g.upper()
+                if sc==1.0:
+                    sc=0.9999
+                if len(expressed_prot_list)>0 and g not in expressed_prot_list:
+                    continue
+                if addmrna:
+                    g+='mrna'
+                all_edge_weights.append(sc)
+                #now we can finally add the interaction
+                if tf not in transcription_graph.nodes():
+                    transcription_graph.add_edge(tf,g,{'weight':sc})
+                elif g not in transcription_graph.successors(tf):
+                    transcription_graph.add_edge(tf,g,{'weight':sc})
+                elif sc > transcription_graph[tf][g]['weight']:
+                    transcription_graph[tf][g]['weight']=sc
+
+    print 'Removed '+str(p300counts)+' interactions containing p300'
+    if renormalize:
+        print 'Renormalizing edge weights to be between 0 and 1'
+        for edge in transcription_graph.edges_iter():
+            old_weight=transcription_graph[edge[0]][edge[1]]['weight']
+            new_weight=float(len([x for x in all_edge_weights if x < old_weight]))/float(len(all_edge_weights))
+            transcription_graph[edge[0]][edge[1]]['weight']=new_weight
+        
+    print 'Returning transcriptional network with '+str(len(transcription_graph.nodes()))+' nodes and '+str(len(transcription_graph.edges()))+' edges'
+    return transcription_graph
+
+
+def make_tf_data_into_network(tf_file,addmrna=True,expressed_prot_list=[],doUpper=False):
+    '''
+    First figure out if the file is a pickle or a text file, then call the tgmpickle code to parse. otherwise return contents
+    '''
+    #figure out file format
+    ext=tf_file.split('.')[-1]
+    if ext=='pkl':
+        print 'Determined '+tf_file+' is PKL'
+        tfnet=get_transcriptional_network_from_tgm(pickle.load(open(tf_file,'rU')),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
+
+    else:
+        print 'Deteremined '+tf_file+' is txt'
+        tfnet=get_transcriptional_network(open(tf_file,'rU').readlines(),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
+
+
+    print "Returning "+str(len(tfnet.edges()))+' TF-MRNA interaction scores'
+
+    return tfnet
+    
 
 
 def main():##this is mainly to test, hopefully this will be called from responsenet code

@@ -97,7 +97,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     commodity_direct_weights=collections.defaultdict(dict)
     for c in commodity_names:
         corig=c.strip('\"')
-        for neigh in big_PPI.neighbors(corig+'_treatment'):
+        for neigh in big_PPI.successors(corig+'_treatment'):
             if neigh in phenres:
                 commodity_source_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
             if neigh in directres:
@@ -267,6 +267,9 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
                 weight=cap
             if weight==0:
                 print 'zero weight: '+n1+' '+n2
+                weight=0.00001
+              #  continue
+
             for c in commodity_names:
                 file.write('\"'+n1+'\" \"'+n2+'\" \"'+c+'\" '+str(weight)+'\n')
 
@@ -390,7 +393,10 @@ def writeorigdatfile(big_PPI,trares,phenres,mirnares,outputfilename,source,sink,
                     if weight >= cap:
                         weight=cap
                     if weight ==0:
-                        print "zero weight: "+protein +' '+neighbors
+                        print "zero weight: "+protein +' '+neighbors#
+                        #continue
+                        weight=0.00001
+
                     
                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
                 #mrna->sink
@@ -498,7 +504,7 @@ def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,sou
     ##now write all to file
     for i in other_node_caps.keys():
         if i not in all_tra_caps.keys() and i!=source:
-            for suc in networkx.successors(i):
+            for suc in networkx.neighbors(i):
                 file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
                 
     file.write(';\n')
@@ -524,7 +530,7 @@ def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,sou
                         weight=cap
                     if weight ==0:
                         print "zero weight: "+protein +' '+neighbors
-                    
+                        weight=0.00001
                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
                 #mrna->sink
                 else:
@@ -534,10 +540,10 @@ def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,sou
             for neighbors in big_PPI.successors(protein):
                 file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
 #        elif protein=='direct' and len(mirnares)>0:
-#            for neighbors in big_PPI.successors(protein):
+#            for neighbors in big_PPI.neighbors(protein):
 #                file.write(protein+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
 #        else:
-#            for neighbors in big_PPI.successors(protein):
+#            for neighbors in big_PPI.neighbors(protein):
 #                file.write(source+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
 
     file.write(';')
@@ -585,7 +591,7 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
 #    file.write('set sourcesink := '+sink+' '+source+' ;\n')
     file.write('set sourcesink := \"'+sink+'\" \"'+source+'\" ')
     if usetargetcapacity:
-        all_neighbors=big_PPI.neighbors(source)
+        all_neighbors=big_PPI.successors(source)
         all_neighbors.update(big_PPI.predecessors(sink))
         for treat in all_neighbors:
             file.write('\"'+treat+'\" ')
@@ -611,7 +617,7 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
     file.write('set source_interactions := ')
 
     ##if we're using mirnas, connect source to direct/indirect. 
-    for treat in big_PPI.neighbors(source):
+    for treat in big_PPI.successors(source):
         file.write('(\"'+source+'\",\"'+treat+'\") ')
         if usetargetcapacity:
             for targ in big_PPI.neighbors(treat):
@@ -638,7 +644,7 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
     other_node_caps={}
     for treat in big_PPI.successors(source):#phenres.keys():
         #if usetargetcapacity:
-        #    for targ in big_PPI.successors(treat):
+        #    for targ in big_PPI.neighbors(treat):
         #        file.write('\"'+treat+'\" \"'+targ+'\"\t'+str(float(big_PPI.get_edge_data(treat,targ)['weight']))+'\n')
         ##now add in hierarchical capactities
         ##now write all to file
@@ -727,8 +733,8 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
                         weight=cap
 
                     if weight ==0:
+                        weight=0.0001
                         print "zero weight: "+protein +' '+neighbors
-                    
                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
                 #mrna->sink
                 else:

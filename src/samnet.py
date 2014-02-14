@@ -2,7 +2,7 @@
 samnet.py
 Primary samnet executable
 
-Copyright (c) 2012-2013 Sara JC Gosline
+Copyright (c) 2012-2014 Sara JC Gosline
 sgosline@mit.edu
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -93,7 +93,7 @@ def main():
 
     parser.add_option("--solver", type="string", dest="solver", help="OPTIONAL: Solver used to generate the flow solution. Write exact name of the solver as it should appear in an ampl command. Default is cplexamp", default="cplexamp")
     
-    parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names or \'humaniref\' to use human iref identifiers or \'mouseiref\' to use mouse genes mapped to human identifiers.",default='')
+    parser.add_option("--updateIds",type='string',dest='updateIds',help="OPTIONAL: Set to \'mouse\' if you want to map protein ids to mouse gene names, \'human\' if you want to map to human gene names. Underlying assumption is that protein-protein interaction network, TF-DNA interaction and source weights are all in UNIPROT identifies.",default='')
 
     parser.add_option('--hier-cap',action='store_true',dest='hier_cap',help='OPTIONAL: Set this flag to make capacities decrease by factor of 1/10^x where x is unweighted shortest path to Source.  WARNING: not tested for MCF yet.',default=False)
     parser.add_option('--noTfs',action='store_true',dest='noTfs',default=False,help="OPTIONAL: Set this flag to take sink weights and directly connect them to protein interaction network without using a TF-DNA interaction network as intermediate.")
@@ -128,19 +128,17 @@ def main():
     if options.prot_weights!='':
         indirect_weights=parseIn.get_weights_phen_source(parseIn.multiple_args_into_one_dict(options.prot_weights,options.treat_names))
         tn=re.split(',',options.treat_names)
+        if len(tn)>0:
+            tnames=[b+'_treatment' for b in tn]
 
     elif options.prot_weights_comm!='': 
         # using one comprehensive phos files for all commodities
-        lf,tn=parseIn.by_comm_into_one_dict(options.prot_weights_comm)
+        lf,tn,expprots=parseIn.by_comm_into_one_dict(options.prot_weights_comm)
         indirect_weights=parseIn.get_weights_phen_source(lf)
  
 
     ##now process treatment weights -- either costs in single commodity case, or amount of flow in multi
     treat_weights={}
-
-    if len(tn)>0:
-        tnames=[b+'_treatment' for b in re.split(',',options.treat_names)] ##have to add _treatment' to everything to better annotate edges in cytoscape    
-   
     if len(options.treat_weights)>0:
         weight_vals=re.split(',',options.treat_weights)
     
@@ -148,7 +146,6 @@ def main():
             tnames=['treatment '+i for i in range(weight_vals)]
         for w in range(len(tnames)):
             treat_weights[tnames[w]]=float(weight_vals[w])
-    #print tnames
 
     input_str='Processing '+input_type+' weights on interaction network'
     print input_str
@@ -160,18 +157,20 @@ def main():
     #PPI comes as a pkl graph with weights already incorporated in the edge information, so no edge addition necessary
     #remember the PPI graph (has information from multiple graphs given from user input)
     PPI_with_weights = networkx.read_gpickle(options.PPIfile)
+    PPI_with_weights = networkx.DiGraph(PPI_with_weights)
     if options.updateIds!='':
         ppi_str=ppi_str+'.  Using '+options.updateIds+' identifiers'
-        if options.updateIds=='humaniref' or options.updateIds=='mouseiref':
-            ubcids=['icrogid:5822231', 'icrogid:1938627', 'icrogid:2399853', 'icrogid:2068280']
-            innet=[u for u in ubcids if u in PPI_with_weights.nodes()]
-            print 'Removing '+str(len(innet))+' UBC identifiers from network'
-            for i in innet:
+        ubcids=['icrogid:5822231', 'icrogid:1938627', 'icrogid:2399853', 'icrogid:2068280','UBC_HUMAN','UBC']
+        innet=[u for u in ubcids if u in PPI_with_weights.nodes()]
+        print 'Removing '+str(len(innet))+' UBC identifiers from network'
+        for i in innet:
                 PPI_with_weights.remove_node(i)
                 
     if options.expr_prots!='':
         ppi_str=ppi_str+' and filtering by '+os.path.basename(options.expr_prots)
         PPI_with_weights=parseIn.filter_ppi(PPI_with_weights,open(options.expr_prots,'r'))
+
+    expr_prots=PPI_with_weights.nodes()
 
  #   PPI_with_weights = multiple_args_into_one_list(options.PPIfile,True)
     print ppi_str
@@ -187,32 +186,29 @@ def main():
 
     if options.trafile!='':
         tradata = parseIn.multiple_args_into_one_dict(options.trafile,options.treat_names)
-        tf_mrna_weights_data = parseIn.multiple_args_into_one_list(options.tf_mrna_weights)
-
         weights_mRNA_to_sink = tfNetwork.get_weights_mRNA_sink(tradata,options.foldchange,options.upordown,addMrna=True)
         print 'mRNA data from: '+','.join(weights_mRNA_to_sink.keys())
+
     elif options.trafile_comm!='':
-        tradata,ttn = parseIn.by_comm_into_one_dict(options.trafile_comm)
-        tf_mrna_weights_data = parseIn.multiple_args_into_one_list(options.tf_mrna_weights)    
+        tradata,ttn,expmrna = parseIn.by_comm_into_one_dict(options.trafile_comm)
         weights_mRNA_to_sink = tfNetwork.get_weights_mRNA_sink(tradata,options.foldchange,options.upordown,addMrna=True)
         print 'mRNA data from: '+','.join(weights_mRNA_to_sink.keys())
 
     elif options.raw_tf_data!='':
         print "This option is depracated, just use --noTfs flag!"
         tradata = parseIn.multiple_args_into_one_dict(options.raw_tf_data,options.treat_names)
-        tf_mrna_weights_data = parseIn.multiple_args_into_one_list(options.tf_mrna_weights)
-                
         weights_mRNA_to_sink = tfNetwork.get_weights_mRNA_sink(tradata,options.foldchange,options.upordown,addMrna=False)
         print 'TF node data from: '+','.join(weights_mRNA_to_sink.keys())
-            #transcriptional network (made from the tf_mrna_weights file given as a parameter)
-    #mRNA have 'mrna' appended in their names
+
+
     #remember the transcriptional graph
-    graph_tr = tfNetwork.get_transcriptional_network(transcriptional_network_weight_data=tf_mrna_weights_data,addmrna=True,expressed_prot_list=[],doUpper=(options.updateIds in ['human','mouse','yeast']))
+    graph_tr = networkx.DiGraph()
+    if not options.noTfs:
+        graph_tr = tfNetwork.make_tf_data_into_network(options.tf_mrna_weights,addmrna=True,expressed_prot_list=expr_prots+expmrna,doUpper=(options.updateIds in ['human','mouse','yeast']))
 
     
     print tf_string
 
-    
         
     #NAME OF OUTPUT FILE
 
@@ -233,9 +229,8 @@ def main():
     ############################Hierarchical Network capacities######### ###########################
     node_caps=defaultdict(dict)## dictionary of all nodes for each commodity
     
-
-        
-    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=weights_mRNA_to_sink,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,ampl_path=options.ampl_path,debug=options.debug,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=options.mcf,makeCombined=options.make_combined,node_caps=node_caps,add_in_hier=options.hier_cap)
+    
+    run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights=weights_mRNA_to_sink,output=options.outputfile,updateIds=options.updateIds,cap=options.cap,gamma=options.gamma,solver=options.solver,ampl_path=options.ampl_path,debug=options.debug,noTfs=options.noTfs,treat_weights=treat_weights,diff_ex_vals=diff_ex_dict,de_cap=options.de_cap,doMCF=len(indirect_weights)>1,makeCombined=options.make_combined,node_caps=node_caps,add_in_hier=options.hier_cap)
 
 def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weights,output,updateIds,cap=0.7,gamma=8,solver='loqo',ampl_path='',debug=False,noTfs=False,treat_weights=dict(), diff_ex_vals=dict(),de_cap='sink',doMCF=False,makeCombined=False,node_caps={},add_in_hier=True):
 #    print de_cap
@@ -263,13 +258,10 @@ def run_rn(PPI_with_weights,indirect_weights,direct_weights,graph_tr,mrna_weight
 nn    
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
     '''
-    '''
-    if doMCF:
-        all_nodes=PPI_with_weights.nodes()
-        random.shuffle(all_nodes)
-        for n in all_nodes[0:1000]:
-            PPI_with_weights.remove_node(n)
-            '''
+    
+    if not doMCF:
+        doMCF=len(indirect_weights)>1 ##just double check!!
+
    # print indirect_weights.keys()
 #    if doMCF and len(node_caps)>0:
 #        print 'Selected to run in multi-commodity mode with hierarchical capacities.  This has not been tested yet!'
@@ -279,9 +271,17 @@ nn
     #for each protein in the phenotypic data, keep it in phenres if it is contained in the PPI
     ##NEW: or if its in the TF->mrna network!
     #phenres = [x for x in weights_source_to_phen.keys() if PPI_with_weights.has_node(x)]
+    
+    allcoms=[treat for treat in indirect_weights.keys() if treat in mrna_weights.keys()]
+    print 'Using '+str(len(allcoms))+' commodities that are found in both '+str(len(indirect_weights))+' protein weights and '+str(len(mrna_weights))+' sink weights'
+    
+
     phenres = []
     if(len(indirect_weights)>0):
         for treat in indirect_weights.keys():
+            if treat not in allcoms:
+                indirect_weights.pop(treat,None)
+                continue
             #print '--phen---'+treat
             for x in indirect_weights[treat].keys():#change for multisource
                 if PPI_with_weights.has_node(x) or graph_tr.has_node(x):##forgot to check graphTr!
@@ -315,6 +315,9 @@ nn
     directres = []
     if len(direct_weights)>0 and rawTf=='':
         for treat in direct_weights.keys():##changed for multi source
+            if treat not in allcoms:
+                direct_weights.pop(treat,None)
+                next
             #print '--mirna---'+treat
             for x in direct_weights[treat].keys():
                 if graph_tr.has_node(x):
@@ -331,6 +334,9 @@ nn
     trares = []
     if noTfs:  ##theis just means that mRNA weights are actually tf weights
         for treat in mrna_weights.keys():
+            if treat not in allcoms:
+                mrna_weights.pop(treat,None)
+                next
             for x in mrna_weights[treat].keys():
                 if PPI_with_weights.has_node(x):
                     if x not in trares:
@@ -346,6 +352,9 @@ nn
         print(len(trares))
     else:
         for treat in mrna_weights.keys():
+            if treat not in allcoms:
+                mrna_weights.pop(treat,None)
+                next
             #print '--mrna--'+treat
             for x in mrna_weights[treat].keys():
                 if graph_tr.has_node(x):
@@ -395,7 +404,7 @@ nn
             PPI_with_weights.add_edge(treat+'_sink',sink,{'weight':treat_weights[treat]})
             for mrna_node in mrna_weights[treat].keys():
                 weight = mrna_weights[treat][mrna_node]
-#                print treat, mrna_node,weight
+              #  print treat, mrna_node,str(weight)
                 if weight!=0.0:##this means that it is connected to the TF network
                     PPI_with_weights.add_edge(mrna_node,treat+'_sink',{'weight':weight})
 
@@ -417,6 +426,7 @@ nn
                 if prot in indirect_weights[treat].keys():##add double check
                     weight = indirect_weights[treat][prot]#/sum(indirect_weights[treat].values())
                     if weight!=0.0:
+                    #    print treat,prot,str(weight)
                         PPI_with_weights.add_edge(treat,prot,{'weight':weight})
         
 

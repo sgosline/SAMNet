@@ -313,14 +313,16 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
         print 'No identifier matching, moving on...'
         idfile=''
     else:
-        if(species_name.lower()=='mouse'):
-            idfile=pickle.load(open(id_directory+'/10090protein.aliases.v9.0_geneName.pkl','r'))
-        elif(species_name.lower()=='human'):
-            idfile=pickle.load(open(id_directory+'/9606protein.aliases.v9.0_geneName.pkl','r'))
-        elif(species_name.lower()=='yeast'):
-            idfile=pickle.load(open(id_directory+'/4932protein.aliases.v9.0_geneName.pkl','r'))
-        elif(species_name.lower()=='humaniref'):
-            idfile=pickle.load(open(id_directory+'/9606mitab.01192011.uniq_miscore-localirefindex3-20110831.geneMapping.pkl','r'))
+     #   if(species_name.lower()=='mouse'):
+     #       idfile=pickle.load(open(id_directory+'/10090protein.aliases.v9.0_geneName.pkl','r'))
+     #   elif(species_name.lower()=='human'):
+     #       idfile=pickle.load(open(id_directory+'/9606protein.aliases.v9.0_geneName.pkl','r'))
+     #   elif(species_name.lower()=='yeast'):
+     #       idfile=pickle.load(open(id_directory+'/4932protein.aliases.v9.0_geneName.pkl','r'))
+     #   elif(species_name.lower()=='humaniref'):
+     #       idfile=pickle.load(open(id_directory+'/9606mitab.01192011.uniq_miscore-localirefindex3-20110831.geneMapping.pkl','r'))
+        if species_name.lower()=='human':
+            idfile=pickle.load(open(id_directory+'/humanUniprotHugoEntryMapping.pkl','r'))
         elif(species_name.lower()=='mouseiref'):
             idfile=pickle.load(open(id_directory+'/mouse_genename_to_9606mitabiref.pkl','r'))
 	else:
