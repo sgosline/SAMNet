@@ -141,7 +141,7 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
          #   print 'Replacing edge weight of '+str(old_weight)+' with '+str(new_weight)
             transcription_graph[edge[0]][edge[1]]['weight']=new_weight
         
-    print 'Returning transcriptional network with '+str(len(transcription_graph.nodes()))+' nodes and '+str(len(transcription_graph.edges()))+' edges'
+    print 'Returning transcriptional network with '+str(transcription_graph.number_of_nodes())+' nodes and '+str(transcription_graph.number_of_edges())+' edges'
     return transcription_graph
  
 #moved from original responsenet code
@@ -339,7 +339,7 @@ def get_transcriptional_network_from_tgm(tgm,addmrna=True,expressed_prot_list=[]
         count+=1
         if count%50==0:
             print 'Processed '+str(count)+' of '+str(len(tf_scores))+' TF motif clusters.'
-            print '...tf network has '+str(len(transcription_graph.edges()))+' edges'
+            print '...tf network has '+str(transcription_graph.number_of_edges())+' edges'
         
         if delim in tfs: # In the case of a multi-tf family, break them up
             alltfs=tfs.split(delim)
@@ -381,7 +381,7 @@ def get_transcriptional_network_from_tgm(tgm,addmrna=True,expressed_prot_list=[]
             new_weight=float(len([x for x in all_edge_weights if x < old_weight]))/float(len(all_edge_weights))
             transcription_graph[edge[0]][edge[1]]['weight']=new_weight
         
-    print 'Returning transcriptional network with '+str(len(transcription_graph.nodes()))+' nodes and '+str(len(transcription_graph.edges()))+' edges'
+    print 'Returning transcriptional network with '+str(transcription_graph.number_of_nodes())+' nodes and '+str(transcription_graph.number_of_edges())+' edges'
     return transcription_graph
 
 
@@ -391,16 +391,26 @@ def make_tf_data_into_network(tf_file,addmrna=True,expressed_prot_list=[],doUppe
     '''
     #figure out file format
     ext=tf_file.split('.')[-1]
-    if ext=='pkl':
-        print 'Determined '+tf_file+' is PKL'
-        tfnet=get_transcriptional_network_from_tgm(pickle.load(open(tf_file,'rU')),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
+    if ext.lower()=='pkl':
+        print 'Determined '+tf_file+' is PKL, loading...'
+        tfobj=pickle.load(open(tf_file,'rU'))
+        ##now test for object type
+        if type(tfobj) is dict:
+            print 'Unpickled is matrix file, creating network'
+            tfnet=get_transcriptional_network_from_tgm(pickle.load(open(tf_file,'rU')),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
+        elif type(tfobj) is networkx.DiGraph:
+            print 'Unpickled is networkX, returning'
+            tfnet=tfobj
+        else:
+            print 'Pickled object unknown, returning empty digraph'
+            tfnet=networkx.DiGraph()
 
     else:
         print 'Deteremined '+tf_file+' is txt'
         tfnet=get_transcriptional_network(open(tf_file,'rU').readlines(),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
 
 
-    print "Returning "+str(len(tfnet.edges()))+' TF-MRNA interaction scores'
+    print "Returning "+str(tfnet.number_of_edges())+' TF-MRNA interaction scores'
 
     return tfnet
     

@@ -16,6 +16,7 @@ import sys
 #import make_pcst_input
 #import pickle
 from collections import defaultdict
+from ConfigParser import ConfigParser
 
 __author__ = 'Shao-shan Carol Huang,Sara Gosline'
 __email__ = 'shhuang@mit.edu,sgosline@mit.edu'
@@ -61,6 +62,9 @@ def summary_html(outdir,comcolors):
     ##count how many of original results are included
     mrnanontindex = len(mrnaterminal)-mrnatindex
     nontindex = len(terminal) - tindex
+
+    ##now get config data and format 
+    params=get_config_vals(outdir)
 
     #this page is the cytoscape panel
     file = open(outdir+'/CytoscapeWebControls.html','w')
@@ -155,6 +159,10 @@ def summary_html(outdir,comcolors):
     <a href="../data/tf2gene" >Transcription Factor to DNA interaction file</a>
     <br/><a href="../data/interactome" >Protein-Protein Interaction PKL file</a><br/>
 </td></tr>
+<tr><td><h2>Input Parameters</h2>
+    Gamma: %d<br>
+    Hierarchical capacities: %s<br>
+</td></tr>
 <tr><td><h2>Output Files</h2>
     <a href="samnetoutmultiComm_mcfs_symbol.sif">SAMNet network in SIF format (Cytoscape) </a><br/>
     <a href="samnetoutmultiComm_edge_commodity_symbol.eda">Edge Flow values </a><br/>
@@ -172,7 +180,7 @@ def summary_html(outdir,comcolors):
 </td></tr>
 </table></center>
     </body></html>
-""" )
+""" % (params['gamma'],params['hiercap']) )
 
     file.close()
 
@@ -187,6 +195,18 @@ def get_protweight_filename(outdir):
     return outdir + "/../data/proteinWeights"
 def get_tf_filename(outdir):
     return outdir + "/../data/tf2gene"
+
+def get_config_vals(outdir):
+    fname=outdir+ "/../input.config"
+    config=ConfigParser()
+    config.read(fname)
+    gamma=config.get('Samnet','gamma')
+    hiercap=config.get('Samnet','hiercap')
+    if hiercap is None or hiercap=='' or hiercap=='False':
+        hiercap="False"
+    else:
+        hiercap="True"
+    return {'gamma':gamma,'hiercap':hiercap}
 
 def get_html_result(outdir,input_filename):
     return os.path.join(outdir, input_filename+'_result.html')
@@ -320,6 +340,7 @@ def sifParser(outdir, input_filename,symbol):
 def iframe_result_html_prepare(outdir):
     '''
     Added new HTML prepare file that doesn't use frames since they have been depracated.  
+    Doesn't really work :(
     Fingers crossed!
     '''
     input_prefix='samnetoutmultiComm'

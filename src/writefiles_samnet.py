@@ -74,7 +74,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     and from tra to sink vary based on commodity, but internal edge weights are the same
     '''
 
-    print 'Writing network with '+str(len(big_PPI.nodes()))+' nodes and '+str(len(big_PPI.edges()))+' edges'
+    print 'Writing network with '+str(big_PPI.number_of_nodes())+' nodes and '+str(big_PPI.number_of_edges())+' edges'
     
     ##extract commodity weights:
     comm_weights={}

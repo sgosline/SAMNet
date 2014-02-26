@@ -39,9 +39,9 @@ def main():
 	davidthresh=config.get('David','threshold')
 	
 	if tfa is not None:
-    		pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --amplPath='+amplpath+' --tfmrna='+tfa+' --output='+outputdir+'/results/samnetout --updateIds=humaniref'
+    		pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --amplPath='+amplpath+' --tfmrna='+tfa+' --output='+outputdir+'/results/samnetout --updateIds=human'
         elif tfweights!='':
-         	pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --noTfs --amplPath='+amplpath+' --updateIds=humaniref --output='+outputdir+'/results/samnetout'
+         	pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --noTfs --amplPath='+amplpath+' --updateIds=human --output='+outputdir+'/results/samnetout'
 
     	if hiercap=='on':
         	pythonstr+=' --hier-cap'
@@ -58,6 +58,8 @@ def main():
 	fop.write(davidstr+'\n')
 
 	fop.close()
+
+    ##now copy config file to output directory (for output parsing)
 
 if __name__=='__main__':
 	main()
