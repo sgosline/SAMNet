@@ -28,7 +28,7 @@ def title_html(outdir):
     This creates the title frame, pretty basic so far
     '''
     file = open(outdir+'/title.html','w')
-    file.writelines("""<html><body><center><a href="http://fraenkel.mit.edu/samnetweb" target="_parent"><img src="../../../samnet/img/samnet_header.png"></a></center></body></html>""")
+    file.writelines("""<html><body><center><a href="http://fraenkel-nsf.mit.edu/samnetweb" target="_parent"><img src="../../../samnet/img/samnet_header.png"></a></center></body></html>""")
 
     file.close()
 
