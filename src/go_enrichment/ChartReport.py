@@ -48,6 +48,7 @@ def DAVIDenrich(listF, idType, bgF='', resF='', bgName = 'Background1',listName=
         for row in chartReport:
             rowDict = dict(row)
             categoryName = str(rowDict['categoryName'])
+            termName='NA'
             termName = str(rowDict['termName'])
             listHits = str(rowDict['listHits'])
             percent = str(rowDict['percent'])

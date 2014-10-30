@@ -28,7 +28,7 @@ def title_html(outdir):
     This creates the title frame, pretty basic so far
     '''
     file = open(outdir+'/title.html','w')
-    file.writelines("""<html><body><center><a href="http://fraenkel-nsf.mit.edu/samnetweb" target="_parent"><img src="../../../samnet/img/samnet_header.png"></a></center></body></html>""")
+    file.writelines("""<html><body><center><a href="http://fraenkel-nsf.csbi.mit.edu/samnetweb" target="_parent"><img src="../../../samnet/img/samnet_header.png" height=140 width=600></a></center></body></html>""")
 
     file.close()
 
@@ -36,24 +36,50 @@ def summary_html(outdir,comcolors):
     '''
     This creates the summary panel to the right with all the run-specific details
     '''
-    ##unique sets of protein and mrna weights
-    terminal = set([arr.strip().split('\t')[1] for arr in open(outdir+'/../data/proteinWeights','rU').readlines()])
-    mrnaterminal = set([arr.strip().split('\t')[1] for arr in open(outdir+'/../data/exp','rU').readlines()])
+    ##use new output files to determine which identifiers were missed
+    terminal = set()
+    missedterminal = set()
+    for arr in open(outdir+'/samnetoutproteinWeightsInInteractome.txt','rU').readlines():
+        vals=arr.strip().split('\t')
+        if vals[1]=='InInteractome':
+            if '(' in vals[2]:
+                x=vals[2].split(' ')[1].strip('(').strip(')')
+                for y in x.split(','):
+                    terminal.add(y)
+            else:
+                terminal.add(vals[2])
+        else:
+            missedterminal.add(vals[2])
+    
+    mrnaterminal = set()
+    missedmrna = set()
+    for arr in open(outdir+'/samnetoutExprInInteractome.txt','rU').readlines():
+        vals=arr.strip().split('\t')
+        if vals[1]=='InInteractome':
+            mrnaterminal.add(vals[2])
+        else:
+            missedmrna.add(vals[2])
 
     ##get original NONSYMBOL file
     sif_file = outdir + "/samnetoutmultiComm_mcfs.sif"
-    file = open(sif_file)
+    if os.path.exists(sif_file):
+        file = open(sif_file)
+    else:
+        file = None
     tindex = 0
     mrnatindex = 0
     nontindex = 0
     nodeSet = set()
-    while 1:
-        line = file.readline()
-        if line == "": break
-        temp = line.strip().split()
-        nodeSet.add(temp[0])
-        nodeSet.add(temp[2])
-    file.close()
+    if file is not None:
+        while 1:
+            line = file.readline()
+            if line == "": break
+            temp = line.strip().split()
+            nodeSet.add(temp[0])
+            nodeSet.add(temp[2])
+        file.close()
+    
+    ##now count all the nodes selected
     for node in nodeSet:
         if node in terminal:
             tindex += 1
@@ -61,7 +87,10 @@ def summary_html(outdir,comcolors):
             mrnatindex += 1
     ##count how many of original results are included
     mrnanontindex = len(mrnaterminal)-mrnatindex
+    missedmindex = len(missedmrna)
+
     nontindex = len(terminal) - tindex
+    missedtindex = len(missedterminal)
 
     ##now get config data and format 
     params=get_config_vals(outdir)
@@ -87,10 +116,12 @@ def summary_html(outdir,comcolors):
         data.addColumn('string', 'Task');
         data.addColumn('number', 'Included Source Nodes');
         data.addRows(5);
-        data.setValue(0, 0, 'Included Source (e.g. Protein Weight) Nodes');
+        data.setValue(0, 0, 'Nodes in Solution');
         data.setValue(0, 1, %d);
-        data.setValue(1, 0, 'Excluded Source (e.g. Protein Weight) Nodes');
+        data.setValue(1, 0, 'Nodes eliminated during optimization');
         data.setValue(1, 1, %d);
+        data.setValue(2, 0, 'Identifiers not in original network');
+        data.setValue(2, 1, %d);
       
         // Create and draw the visualization.
         new google.visualization.PieChart(document.getElementById('visualization')).
@@ -106,10 +137,13 @@ def summary_html(outdir,comcolors):
         data.addColumn('string', 'Task');
         data.addColumn('number', 'Included Terminals');
         data.addRows(5);
-        data.setValue(0, 0, 'Included Sink (e.g. mRNA) Nodes');
+        data.setValue(0, 0, 'Nodes in Solution');
         data.setValue(0, 1, %d);
-        data.setValue(1, 0, 'Excluded Sink (e.g. mRNA) Nodes');
+        data.setValue(1, 0, 'Nodes eliminated during optimization');
         data.setValue(1, 1, %d);
+        data.setValue(2, 0, 'Identifiers not in original network');
+        data.setValue(2, 1, %d);
+
 
         // Create and draw the visualization.
         new google.visualization.PieChart(document.getElementById('visualizationdna')).
@@ -138,7 +172,7 @@ def summary_html(outdir,comcolors):
 <h1>   </h1>
 <center><h1>Network Legend</h1><br>
    <table><tr><td colspan="2"><center><h3>Edge commodities</h3></center></td></tr>
-        """%(tindex,nontindex,mrnatindex,mrnanontindex))
+        """%(tindex,nontindex,missedtindex,mrnatindex,mrnanontindex,missedmindex))
     ##add in colors here
     for comm in comcolors.keys():
         file.writelines('<tr><td><h4>'+comm+':</h4></td><td> <font color="'+comcolors[comm]+'">----------------</font></td></tr>\n')
@@ -160,8 +194,10 @@ def summary_html(outdir,comcolors):
     <br/><a href="../data/interactome" >Protein-Protein Interaction PKL file</a><br/>
 </td></tr>
 <tr><td><h2>Input Parameters</h2>
-    Gamma: %d<br>
+    Gamma: %s<br>
     Hierarchical capacities: %s<br>
+    Proteins included: <a href="samnetoutproteinWeightsInInteractome.txt">Protein network membership</a><br>
+    mRNAs included: <a href="samnetoutExprInInteractome.txt">mRNA network membership</a><br>
 </td></tr>
 <tr><td><h2>Output Files</h2>
     <a href="samnetoutmultiComm_mcfs_symbol.sif">SAMNet network in SIF format (Cytoscape) </a><br/>
@@ -288,27 +324,34 @@ def sifParser(outdir, input_filename,symbol):
     node_flow_filename=get_node_flow_noa_filename(outdir,input_filename,symbol)
 
     ##first get edges, interaction types
-    file = open(siffile).readlines()
-    for row in file:
-        p1,comm,p2=row.strip().split()
-
-        if p1 in ['S1','T1'] or p2 in  ['S1','T1']:##lets not show the source or sink
-            continue
-        edgedict[comm].append([p1,p2])
-        nodeset.add(p1)
-        nodeset.add(p2)
+    if os.path.exists(siffile):
+        file = open(siffile).readlines()
+    else:
+        file = None
     ##now get node type/flow dictionaries
     nodet,nodef={},{}
-    for row in open(node_type_filename,'rU').readlines():
-        arr=row.strip().split()
-        if len(arr)!=3:
-            continue
-        nodet[arr[0]]=arr[2]
-    for row in open(node_flow_filename,'rU').readlines():
-        arr=row.strip().split()
-        if len(arr)!=3:
-            continue
-        nodef[arr[0]]=arr[2]
+    if file is not None:
+        for row in file:
+            p1,comm,p2=row.strip().split()
+    
+            if p1 in ['S1','T1'] or p2 in  ['S1','T1']:##lets not show the source or sink
+                continue
+            edgedict[comm].append([p1,p2])
+            nodeset.add(p1)
+            nodeset.add(p2)
+    if os.path.exists(node_type_filename):
+        for row in open(node_type_filename,'rU').readlines():
+            arr=row.strip().split()
+            if len(arr)!=3:
+                continue
+            nodet[arr[0]]=arr[2]
+    if os.path.exists(node_flow_filename):
+        for row in open(node_flow_filename,'rU').readlines():
+            arr=row.strip().split()
+            if len(arr)!=3:
+                continue
+            nodef[arr[0]]=arr[2]
+
     nodedict={}
     for node in nodeset:
         t=''
@@ -386,7 +429,7 @@ def result_html_prepare(outdir):
     resultfile.writelines("""
     <html>
     <title>SAMNetWeb - Results</title>
-    <frameset rows="15%,85%">
+    <frameset rows="350,1150">
     <frame src="title.html" name="north" scrolling="no" frameborder="0"/>
     <frameset cols="68%,32%">
     """)
@@ -404,6 +447,7 @@ def result_html_prepare(outdir):
     resultfile.close()
 
 
+
 def html_prepare(outdir):
     '''
     This is the cytoscape plugin page
@@ -414,7 +458,9 @@ def html_prepare(outdir):
     symbol='_symbol'
     if not os.path.exists(input_filename+'_mcfs'+symbol+'.sif'):
         symbol=''
-    
+        
+
+
     htmlfilename = get_html_filename(outdir,input_prefix)
 
 
@@ -449,9 +495,35 @@ def html_prepare(outdir):
       }
     </style>
     """)
-#    htmlfile.writelines("""        <div id="cytoscapeweb" style="width:100%; height:100%;">\n""")
+        #    htmlfile.writelines("""        <div id="cytoscapeweb" style="width:100%; height:100%;">\n""")
 #    htmlfile.writelines("""            Cytoscape Web will replace the contents of this div with your graph.\n""")
 #    htmlfile.writelines("""        </div>\n""")
+
+    if not os.path.exists(input_filename+'_mcfs'+symbol+'.sif'):
+        htmlfile.writelines("""<body>\n""")
+        htmlfile.write("   <h1>Something went wrong, no network created.</h1>\n")
+        htmlfile.write("   <h2>Check the following input parameters and try again:</h2>\n")
+        htmlfile.write("   <p><ul>\n")
+        htmlfile.write("   <li>Gamma parameter could be too low, try increasing\n")
+        htmlfile.write("   <li>There may not be enough identifiers matching the network (see 'network membership' files on the right).\n")
+        htmlfile.write("   <li>Gamma parameter could be too low, try increasing\n")
+        htmlfile.write("   <li>Your source or sink weights all have the same absolute value\n")
+        htmlfile.write("   <li>Please contact the author for more extensive help: sgosline _at_ mit _dot_ edu.\n")
+        htmlfile.write("   </ul></p>\n")
+        comcolors={}
+        
+        htmlfile.writelines("""</body>\n""")
+
+        htmlfile.writelines("""</html>\n""")
+
+#    for line in lines:
+
+#        htmlfile.writelines(line)
+        htmlfile.close()
+        return htmlfilename,comcolors
+        
+    else:
+        networkline,commodities = sifParser(outdir, input_prefix,symbol)
 
     htmlfile.writelines("""        <!-- JSON support for IE (needed to use JS API) --> \n""")
     htmlfile.writelines("""        <script type="text/javascript" src="../../../cyto/js/min/json2.min.js"></script>\n""")
@@ -469,13 +541,8 @@ def html_prepare(outdir):
 
     htmlfile.writelines("""                // you could also use other formats (e.g. GraphML) or grab the network data via AJAX\n""")
 
-    if not os.path.exists(input_filename+'_mcfs'+symbol+'.sif'):
-        htmlfile.write("<h1>NO NETWORK CREATED, CHECK PARAMETERS AND TRY AGAIN</h1>")
-        comcolors={}
-    else:
-        networkline,commodities = sifParser(outdir, input_prefix,symbol)
-        htmlfile.writelines(networkline)
-        comcolors=generateColors(commodities)
+    htmlfile.writelines(networkline)
+    comcolors=generateColors(commodities)
     ##this describes the node types: source, protein, tf, mRNA
     htmlfile.writelines("""                var shapeMapper = {\n""")
     htmlfile.writelines("""                    attrName: "type",\n""")

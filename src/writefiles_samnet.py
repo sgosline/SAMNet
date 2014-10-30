@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 import collections,re,networkx
 
 #write .mod file
-def writechangeflow(wholename,gamma):
+def writechangeflow(wholename,gamma,sinkGamma=False):
     file=open(wholename+'changeflow.mod','w')
     file.write('set proteins;\n')
     file.write('set sourcesink;\n')
@@ -29,7 +29,10 @@ def writechangeflow(wholename,gamma):
     file.write('param capacity {interactions} >=0;\n')
     file.write('var X {(i,j) in interactions}>=0, <=capacity[i,j];\n')
     file.write('minimize Total_Cost:')
-    file.write('sum{(i,j) in interactions}-log(cost[i,j])*X[i,j]-sum{(i,j) in source_interactions}'+gamma+'*X[i,j];\n')
+    if sinkGamma:
+        file.write('sum{(i,j) in interactions}-log(cost[i,j])*X[i,j]-sum{(i,j) in sink_interactions}'+gamma+'*X[i,j];\n')
+    else:
+        file.write('sum{(i,j) in interactions}-log(cost[i,j])*X[i,j]-sum{(i,j) in source_interactions}'+gamma+'*X[i,j];\n')
     file.write('subject to Kirkoff {k in proteins}: sum {(i,k) in interactions} X[i,k]=sum{(k,j) in interactions} X[k,j];\n')
     file.write('subject to sourcesinkcond : sum{(i,j) in source_interactions} X[i,j]=sum{(i,j) in sink_interactions} X[i,j];\n')
     file.close()
@@ -37,7 +40,7 @@ def writechangeflow(wholename,gamma):
               
 
 
-def write_mcf_changeflow(wholename,gamma):
+def write_mcf_changeflow(wholename,gamma,revGamma=False):
     file=open(wholename+'changeflow.mod','w')
     file.write('set proteins;\n')
     file.write('set source;\n')
@@ -57,7 +60,11 @@ def write_mcf_changeflow(wholename,gamma):
     file.write('param capacity {all_interactions} >=0;\n') ##every interaction has a capacity, most are 1
     file.write('var X {all_interactions,commodities} >=0;\n')
     file.write('minimize Total_Cost:\n')
-    file.write('sum{k in commodities}sum{(i,j) in interactions}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in source_interactions[k]}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in sink_interactions[k]}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in source_interactions[k]}'+gamma+'*X[i,j,k];\n')
+    ##if this flag is used, gamma constraint is applied to interactions with sink, not source!
+    if revGamma:
+        file.write('sum{k in commodities}sum{(i,j) in interactions}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in source_interactions[k]}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in sink_interactions[k]}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in sink_interactions[k]}'+gamma+'*X[i,j,k];\n')
+    else:
+        file.write('sum{k in commodities}sum{(i,j) in interactions}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in source_interactions[k]}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in sink_interactions[k]}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in source_interactions[k]}'+gamma+'*X[i,j,k];\n')
 #    file.write('sum{(i,j) in interactions,k in commodities}-log(cost[i,j,k])*X[i,j,k]-sum{(i,j) in source_interactions,k in commodities}'+gamma+'*X[i,j,k];\n')
     file.write('subject to Kirkoff {k in proteins,c in commodities}: sum {(i,k) in all_interactions} X[i,k,c]=sum{(k,j) in all_interactions} X[k,j,c];\n')
     file.write('subject to sourcesinkcond{k in commodities}: sum{(i,j) in source_interactions[k]} X[i,j,k]=sum{(i,j) in sink_interactions[k]} X[i,j,k];\n')
@@ -66,7 +73,7 @@ def write_mcf_changeflow(wholename,gamma):
 
               
 #def write_mcf_datfile(big_PPI,trares,phenres,directres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
-def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False):
+def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps={},debug=False,norm_weights_and_caps=False):
 #    print 'Writing mcf file'
     '''
     This is similar to the writedat file with multiple sources and sinks, but 
@@ -74,12 +81,23 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     and from tra to sink vary based on commodity, but internal edge weights are the same
     '''
 
-    print 'Writing network with '+str(big_PPI.number_of_nodes())+' nodes and '+str(big_PPI.number_of_edges())+' edges'
     
+    print 'Writing network with '+str(big_PPI.number_of_nodes())+' nodes and '+str(big_PPI.number_of_edges())+' edges'
+    for edge in big_PPI.edges():
+        n1=edge[0]
+        n2=edge[1]
+        ew=float(big_PPI.get_edge_data(n1,n2)['weight'])
+        if ew==0.0:
+            big_PPI.remove_edge(n1,n2)
+
+    print 'After zero-weight edges removed, has '+str(big_PPI.number_of_nodes())+' nodes and '+str(big_PPI.number_of_edges())+' edges'
     ##extract commodity weights:
+    suff=''
+    #suff=suff
     comm_weights={}
     for c in big_PPI.successors(source):
-        comm_weights[re.sub('_treatment','',c)]=big_PPI.get_edge_data(source,c)['weight']
+        comm_weights[re.sub(suff,'',c)]=big_PPI.get_edge_data(source,c)['weight']
+
    # print comm_weights
 
     directres=[]
@@ -88,8 +106,8 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     commodity_names=[]
 
     for c in com_sources:
-#        commodity_names.append('\"'+re.sub('_treatment','',c)+'\"')
-        commodity_names.append(re.sub('_treatment','',c))
+        commodity_names.append(re.sub(suff,'',c))
+    dummy_nodes=commodity_names+[a+'_sink' for a in commodity_names]
     print "All commodities: "+','.join(commodity_names)
 
     #now collect dictionary of commodity weights
@@ -97,19 +115,19 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     commodity_direct_weights=collections.defaultdict(dict)
     for c in commodity_names:
         corig=c.strip('\"')
-        for neigh in big_PPI.successors(corig+'_treatment'):
+        for neigh in big_PPI.successors(corig+suff):
             if neigh in phenres:
-                commodity_source_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
+                commodity_source_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+suff,neigh)['weight']
             if neigh in directres:
-                commodity_direct_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+'_treatment',neigh)['weight']
+                commodity_direct_weights[c][neigh]=comm_weights[c]*big_PPI.get_edge_data(corig+suff,neigh)['weight']
             #    print commodity_source_weights
 
 
     commodity_sink_weights=collections.defaultdict(dict)
     for c in commodity_names:
         corig=c.strip('\"')
-        for neigh in big_PPI.predecessors(corig+'_treatment_sink'):
-            commodity_sink_weights[c][neigh]=big_PPI.get_edge_data(neigh,corig+'_treatment_sink')['weight']
+        for neigh in big_PPI.predecessors(corig+suff+'_sink'):
+            commodity_sink_weights[c][neigh]=abs(big_PPI.get_edge_data(neigh,corig+suff+'_sink')['weight'])
 #    print commodity_sink_weights
 
     file=open(outputfilename+'.dat','w')
@@ -119,7 +137,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     '''
     for p in big_PPI.nodes():
         #if p not in big_PPI.successors(source) and p not in big_PPI.predecessors(sink)
-        if 'treatment' not in p and p!=source and p!=sink:
+        if p not in commodity_names and p!=source and p!=sink:
             file.write(' \"'+p+'\"')
     file.write(';\n')
 
@@ -132,7 +150,9 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for two_edge_nodes in big_PPI.edges():
         n1=two_edge_nodes[0]
         n2=two_edge_nodes[1]
-        if n1!=source and n2!=sink and 'treatment' not in n1 and 'treatment' not in n2:
+        ew=float(big_PPI.get_edge_data(n1,n2)['weight'])
+
+        if n1!=source and n2!=sink and n1 not in dummy_nodes and n2 not in dummy_nodes and ew!=0.0:
             file.write('(\"'+n1+'\",\"'+n2+'\")') 
     file.write(";\n")
 
@@ -143,7 +163,9 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for two_edge_nodes in big_PPI.edges():
         n1=two_edge_nodes[0]
         n2=two_edge_nodes[1]
-        if n1!=source and n2!=sink and 'treatment' not in n1 and 'treatment' not in n2:
+        ew=float(big_PPI.get_edge_data(n1,n2)['weight'])
+        
+        if n1!=source and n2!=sink and n1 not in dummy_nodes and n2 not in dummy_nodes and ew!=0.0:
             file.write('(\"'+n1+'\",\"'+n2+'\")') 
     for p in phenres: #assume this is the union of all phenotypic data
         file.write('('+source+',\"'+p+'\")')
@@ -157,7 +179,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for c in commodity_names:
         file.write('set source_interactions['+c+'] :=')
         corig=c.strip('\"')
-        for neighbors in big_PPI.successors(corig+'_treatment'):
+        for neighbors in big_PPI.successors(corig+suff):
             if neighbors in phenres+directres:
                 file.write('(\"'+source+'\",\"'+neighbors+'\")')
         file.write(';\n')
@@ -165,7 +187,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for c in commodity_names:
         file.write('set sink_interactions['+c+'] :=')
         corig=c.strip('\"')
-        for neighbors in big_PPI.predecessors(corig+'_treatment_sink'):
+        for neighbors in big_PPI.predecessors(corig+suff+'_sink'):
             if neighbors in trares:
                 file.write('(\"'+neighbors+'\",\"'+sink+'\")')
         file.write(';\n')
@@ -196,7 +218,8 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
         all_direct_caps[i]=total_cap
 
     for i in all_direct_caps.keys():
-        file.write(source+' \"'+i+'\"\t'+str(float(all_direct_caps[i]/sum(all_direct_caps.values())))+'\n')
+        capsum=sum(all_direct_caps.values())
+        file.write(source+' \"'+i+'\"\t'+str(float(all_direct_caps[i]/capsum))+'\n')
 
     all_tra_caps={}
     for i in trares:
@@ -225,7 +248,9 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for i in other_node_caps.keys():
         if i not in all_tra_caps.keys() and i!=source and i in big_PPI.nodes():
             for suc in big_PPI.successors(i):
-                file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
+                ew=float(big_PPI.get_edge_data(i,suc)['weight'])
+                if 'sink' not in suc and suc!=sink and ew!=0.0:
+                    file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
                 
     file.write(';\n')
 
@@ -239,6 +264,10 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     ##normalize al weights to sum of all weights from source
     all_source_weights=float(sum([sum(commodity_source_weights[c].values()) for c in commodity_source_weights.keys()]))
     print 'All source weights '+str(all_source_weights)
+
+
+    all_sink_weights=float(sum([sum(commodity_sink_weights[c].values()) for c in commodity_sink_weights.keys()]))
+    print 'All sink weights '+str(all_sink_weights)
 
     ##normalize all direct weights separately
     all_direct_weights=float(sum([sum(commodity_direct_weights[c].values()) for c in commodity_direct_weights.keys()]))
@@ -255,23 +284,25 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     for c in commodity_sink_weights.keys():
         for node in commodity_sink_weights[c]:
             if node in trares:
-                file.write('\"'+node+'\" \"'+sink+'\" \"'+c+'\" '+str(commodity_sink_weights[c][node]/sum(commodity_sink_weights[c].values()))+'\n')
+##updated 6/26/14: this penalizes commodities with large amounts of mRNA targets, we don't want to do that.
+##                file.write('\"'+node+'\" \"'+sink+'\" \"'+c+'\" '+str(commodity_sink_weights[c][node]/sum(commodity_sink_weights[c].values()))+'\n')
+                file.write('\"'+node+'\" \"'+sink+'\" \"'+c+'\" '+str(commodity_sink_weights[c][node]/all_sink_weights)+'\n')
 
     #the add costs for other edges, simply duplicating values for all commodities
     for two_node_edge in big_PPI.edges():
         n1=two_node_edge[0]
         n2=two_node_edge[1]
-        if n1!=source and n2!=sink and 'treatment' not in n1 and 'treatment' not in n2: #make sure we're not a dummy node!
+        if n1!=source and n2!=sink and n1 not in dummy_nodes and n2 not in dummy_nodes: #make sure we're not a dummy node!
             weight=float(big_PPI.get_edge_data(n1,n2)['weight'])
             if weight>=cap:
                 weight=cap
             if weight==0:
-                print 'zero weight: '+n1+' '+n2
-                weight=0.00001
-              #  continue
-
-            for c in commodity_names:
-                file.write('\"'+n1+'\" \"'+n2+'\" \"'+c+'\" '+str(weight)+'\n')
+#                print 'zero weight1: '+n1+' '+n2
+#                weight=0.00001
+               continue
+            else:
+                for c in commodity_names:
+                    file.write('\"'+n1+'\" \"'+n2+'\" \"'+c+'\" '+str(weight)+'\n')
 
     file.write(';')
     file.close()
@@ -749,19 +780,19 @@ def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,output
 
 
 #def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
-def write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+def write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):
 #    print de_cap
     writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
 #    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
 
-    writechangeflow(output,gamma)
+    writechangeflow(output,gamma,sinkGamma)
     # create ampl file
     writeamplfile(output,solver)
 
 #def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
-def write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+def write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):
 #    write_mcf_datfile(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
     write_mcf_datfile(PPI_with_weights,trares,phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)
-    write_mcf_changeflow(output,gamma)
+    write_mcf_changeflow(output,gamma,sinkGamma)
     write_mcf_amplfile(output,solver)
 

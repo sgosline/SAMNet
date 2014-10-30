@@ -20,19 +20,33 @@ for row in open(uniprot_map,'r').readlines()[1:]:
 	arr=row.strip().split('\t')
 	allgenes=arr[3].split()
 	for a in allgenes:
-		up_dict[a]=arr[0]
+#		print arr[0],a
+		up_dict[a.strip()]=arr[0]
 		
-		
+##add in mouse uniprot
+mouse_up_map=os.path.join(os.path.dirname(sys.argv[0]),'../../lib/uniprot-mouse.tab')		
+#print uniprot_map
+mouse_up_dict=defaultdict(list)
+for row in open(mouse_up_map,'r').readlines()[1:]:
+	arr=row.strip().split('\t')
+	allgenes=arr[4].split()
+	for a in allgenes:
+ #		print arr[0],a
+		mouse_up_dict[a.strip()]=arr[0]
 
-def getGenesFromTxtFile(filename):
+def getGenesFromTxtFile(filename,species='human'):
     '''
     gets genes from text file
     '''
-    genes=[arr.strip() for arr in open(filename,'r').readlines()]
+    if species=='mouse':
+	ud=mouse_up_dict
+    else:
+	ud=up_dict
+    genes=[arr.strip().split()[0] for arr in open(filename,'r').readlines()]
     mapped,missed=[],[]
     for g in genes:
-        if g in up_dict.keys():
-            mapped.append(up_dict[g])
+        if g in ud.keys():
+            mapped.append(ud[g])
         else:
             missed.append(g)
     print 'Got '+str(len(mapped))+' up ids from '+str(len(genes))+' and missed '+','.join(missed)
@@ -213,7 +227,7 @@ def main():
 	parser.add_option('--thresholdValue',dest='thresholdValue',type='float',default='0.1',help='Threshold less than value'
 	)
 	parser.add_option('--outputDir',dest='outputDir',type='string',default='./',help='Directory for output chartReport and xls file')
-					  
+	parser.add_option('--species',dest='species',type='string',default='human',help='Species')					  
 	opts,args=parser.parse_args()
         daviddir=os.path.dirname(sys.argv[0])
 	print daviddir
@@ -237,7 +251,13 @@ def main():
 		fname=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_genes.txt'
 		open(fname,'w').writelines([g+'\n' for g in genes])
 		flist=[fname]
-		
+	elif opts.listType=='DESEQ':
+        	genes,bg=getGenesFromDeSeqFile(args[0])
+	        idtype='UNIPROT_ACCESSION'
+	        fname=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_genes.txt'
+	        open(fname,'w').writelines([g+'\n' for g in genes])
+		flist=[fname]
+
 	elif opts.listType=='APCLUSTER':
 		genes,bg=getGenesFromAPclusterOutput(args[0])
 		idtype='UNIPROT_ACCESSION'
@@ -265,7 +285,7 @@ def main():
 			flist.append(fname)
 			open(fname,'w').writelines([g+'\n' for g in genes[mir]])
         elif opts.listType=='TXT':
-        	genes=getGenesFromTxtFile(args[0])
+        	genes=getGenesFromTxtFile(args[0],opts.species)
         	idtype='UNIPROT_ACCESSION'
 	        fname=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_genes.txt'
 		open(fname,'w').writelines([g+'\n' for g in genes])
@@ -276,7 +296,7 @@ def main():
 		if opts.listType=='MISO':
 			bggenes=getGenesFromMisoParsedFile(args[1])
         	elif opts.listType=='TXT':
-            		bggenes=getGenesFromTxtFile(args[1])
+            		bggenes=getGenesFromTxtFile(args[1],opts.species)
 		else:
 			bggenes=getGenesFromCuffDiffFile(args[1])
 
@@ -284,20 +304,20 @@ def main():
 		open(bgfile,'w').writelines([b+'\n' for b in bggenes])
 		bgname='background'
 
-	elif opts.listType=='APCLUSTER': #we have defacto background
+	elif len(bg)>0: #opts.listType=='APCLUSTER': #we have defacto background
 		bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
 		bgname='all_clustered_Genes'
 		open(bgfile,'w').writelines([b+'\n' for b in bg])
 	
-	elif opts.listType=='CYTOSIF':	#we have defacto background
-		bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
-		bgname='all_clustered_Genes'
-		open(bgfile,'w').writelines([b+'\n' for b in bg])
+	# elif opts.listType=='CYTOSIF':	#we have defacto background
+	# 	bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
+	# 	bgname='all_clustered_Genes'
+	# 	open(bgfile,'w').writelines([b+'\n' for b in bg])
 
-	elif opts.listType=='CYTOEDA':	#we have defacto background
-		bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
-		bgname='all_clustered_Genes'
-		open(bgfile,'w').writelines([b+'\n' for b in bg])
+	# elif opts.listType=='CYTOEDA':	#we have defacto background
+	# 	bgfile=opts.outputDir+'/'+opts.listName+'_'+opts.listType+'_BG_genes.txt'
+	# 	bgname='all_clustered_Genes'
+	# 	open(bgfile,'w').writelines([b+'\n' for b in bg])
 
 
 	else:

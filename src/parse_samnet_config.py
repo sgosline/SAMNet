@@ -38,7 +38,7 @@ def main():
 
 	davidthresh=config.get('David','threshold')
 	
-	if tfa is not None:
+	if tfweights=='' or tfweights is None:
     		pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --amplPath='+amplpath+' --tfmrna='+tfa+' --output='+outputdir+'/results/samnetout --updateIds=human'
         elif tfweights!='':
          	pythonstr='python '+pythondir+'/samnet.py --PPI='+ppi+' --gamma='+gamma+' --proteinWeightsByComm='+protweights+' --traByComm='+mrna+' --doMCF --noTfs --amplPath='+amplpath+' --updateIds=human --output='+outputdir+'/results/samnetout'
@@ -48,11 +48,11 @@ def main():
 
         
 	##now write scrip
-        davidstr='python '+pythondir+'/go_enrichment/DAVID.py --outputDir='+outputdir+'/results --listName=samnet --thresholdValue='+davidthresh+' '+outputdir+'/results/samnetoutmultiComm_edge_commodity.eda'
-
+        davidstr='python '+pythondir+'/go_enrichment/DAVID.py --outputDir='+outputdir+'/results --listName=samnet --thresholdValue='+davidthresh+' '+outputdir+'/results/samnetoutmultiComm_edge_commodity_symbol.eda'
+#	print 'Parsing samnet config file '+opts.conf
 	#os.system('mkdir '+optsoutputdir+'/sh')
 	fop=open(outputdir+'/run.sh','w')
-	fop.write('source /opt/python2.7.5/env.sh\n')
+#	fop.write('source /opt/python2.7.5/env.sh\n')
 	fop.write('source /opt/ampl/env.sh\n')
 	fop.write(pythonstr+'\n')
 	fop.write(davidstr+'\n')

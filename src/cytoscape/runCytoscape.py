@@ -44,21 +44,24 @@ def main():
         sym=''
     else:
         sym='_symbol'
-        
+    
     eattr=os.path.realpath(prefix+'_ppi_attributes'+sym+'.eda')        
     propFile=fpath+'/nodeEdgeVizMapFile.props'
     if opts.nomrna:
-        net=os.path.realpath(prefix+'_no_mrna'+sym+'.sif')
+        nm='_no_mrna'
+    else:
+        nm=''
+#    net=os.path.realpath(prefix+'_no_mrna'+sym+'.sif')
 
-    elif opts.mcf:
-        net=os.path.realpath(prefix+'_mcfs'+sym+'.sif')
+    if opts.mcf:
+        net=os.path.realpath(prefix+'_mcfs'+nm+sym+'.sif')
         eattr=os.path.realpath(prefix+'_edge_commodity'+sym+'.eda')
         ##extra fiels for mcf
         eattr2=os.path.realpath(prefix+'_edge_type'+sym+'.eda')
         node_tab=os.path.realpath(prefix+'_node_comm_flow'+sym+'.noa')
         propFile=fpath+'/nodeEdgeVizMapFile_mcf.props'
     else:
-        net=os.path.realpath(prefix+'_all'+sym+'.sif')
+        net=os.path.realpath(prefix+'_all'+nm+sym+'.sif')
 
 
     nattr1=os.path.realpath(prefix+'_node_type'+sym+'.noa')

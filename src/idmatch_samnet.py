@@ -73,7 +73,7 @@ def parseSifFileFromStringToGeneName(sif_file,out_file,geneDict=''):
             pep=re.sub('4932.','',arr[a]) ##yeast names need to 
             pep=arr[a]
             arr[a]=pep.strip()
-            if pep.strip() in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP' in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1 or 'icrogid:' in pep.strip() or '_HUMAN' in pep):
+            if pep.strip() in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP' in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1 or 'icrogid:' in pep.strip() or 'HUMAN' in pep.strip()):
                 matches=geneDict[pep.strip()]
                 if len(matches)>1 and len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1:#we're in yeast
                     for m in matches:
@@ -100,7 +100,7 @@ def parseNodeAttrFileFromStringToGeneName(sif_file,out_file,geneDict='',isString
         if len(arr)<2:
             continue
         pep=arr[0].strip()
-        if pep in geneDict.keys() and ('ENSP' in pep or 'ENSMUSP'in pep or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1 or 'icrogid:' in pep or '_HUMAN' in pep):  
+        if pep in geneDict.keys() and ('ENSP' in pep or 'ENSMUSP'in pep or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1 or 'icrogid:' in pep or 'HUMAN' in pep):  
             matches=geneDict[pep]
             if len(matches)>1 and len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1:#we're in yeast
                 for m in matches:
@@ -138,7 +138,7 @@ def parseAttrFileFromStringToGeneName(sif_file,out_file,geneDict=''):
             pep=arr[a]
             arr[a]=pep.strip()
             
-            if pep.strip() in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP'in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1 or 'icrogid:' in pep.strip() or '_HUMAN'):  
+            if pep.strip() in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP'in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1 or 'icrogid:' in pep.strip() or 'HUMAN' in pep.strip()):  
                 matches=geneDict[pep.strip()]
                 if len(matches)>1 and len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1:#we're in yeast
                     for m in matches:
@@ -166,7 +166,7 @@ def parseTabFileFromStringToGeneName(sif_file,out_file,geneDict=''):
         arr=re.split('\t',re.sub('\n','',l))
         pep=arr[0].strip()
         
-        if pep in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP'in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1 or 'icrogid:' in pep.strip() or '_HUMAN' in pep):  
+        if pep in geneDict.keys() and ('ENSP' in pep.strip() or 'ENSMUSP'in pep.strip() or len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep))<1 or 'icrogid:' in pep.strip() or 'HUMAN' in pep.strip()):  
             matches=geneDict[pep.strip()]
             if len(matches)>1 and len(re.sub('Y[A-Z][A-Z][0-9][0-9][0-9][W|C]','',pep.strip()))<1:#we're in yeast
                 for m in matches:

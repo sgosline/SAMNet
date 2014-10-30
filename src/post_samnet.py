@@ -19,11 +19,6 @@ import idmatch_samnet as identifier_matching
 import re,pickle,os
 from collections import defaultdict
 
-fpath=os.path.dirname(os.path.abspath( __file__ ))
-#print fpath
-
-id_directory=re.sub('src','lib',fpath)
-#print id_directory
 
 
 #write sif file
@@ -289,7 +284,7 @@ def calculate_node_flow(lines,mcf):
     return norm_flow,comm_flow,total
 
 
-def process_output(output_file,source='S', sink='T', species_name='',debug=False,de_file=None,mcf=False):
+def process_output(output_file,source='S', sink='T', idfname='',debug=False,de_file=None,mcf=False):
     '''
     Run the standard post-processing steps for responseNet
     '''
@@ -309,27 +304,15 @@ def process_output(output_file,source='S', sink='T', species_name='',debug=False
     phens,prots,tfs,mrnas=write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
             ##MODIFIED by SGOSLINE: added this to do identifer matching for the sif files
     
-    if(species_name.lower==''):
+    if(idfname==''):
         print 'No identifier matching, moving on...'
-        idfile=''
     else:
-     #   if(species_name.lower()=='mouse'):
-     #       idfile=pickle.load(open(id_directory+'/10090protein.aliases.v9.0_geneName.pkl','r'))
-     #   elif(species_name.lower()=='human'):
-     #       idfile=pickle.load(open(id_directory+'/9606protein.aliases.v9.0_geneName.pkl','r'))
-     #   elif(species_name.lower()=='yeast'):
-     #       idfile=pickle.load(open(id_directory+'/4932protein.aliases.v9.0_geneName.pkl','r'))
-     #   elif(species_name.lower()=='humaniref'):
-     #       idfile=pickle.load(open(id_directory+'/9606mitab.01192011.uniq_miscore-localirefindex3-20110831.geneMapping.pkl','r'))
-        if species_name.lower()=='human':
-            idfile=pickle.load(open(id_directory+'/humanUniprotHugoEntryMapping.pkl','r'))
-        elif(species_name.lower()=='mouseiref'):
-            idfile=pickle.load(open(id_directory+'/mouse_genename_to_9606mitabiref.pkl','r'))
-	else:
-            idfile=''
-    if idfile!='': 
+        print idfname
+        idfile=pickle.load(open(idfname,'r'))
 
-        print "Matching identifiers"
+    if idfname!='': 
+
+        print "Matching identifiers with "+idfname
         identifier_matching.parseSifFileFromStringToGeneName(open(output_file+'_all.sif','r'),output_file+'_all_symbol.sif',idfile)
         identifier_matching.parseSifFileFromStringToGeneName(open(output_file+'_mcfs.sif','r'),output_file+'_mcfs_symbol.sif',idfile)
         identifier_matching.parseSifFileFromStringToGeneName(open(output_file+'_no_mrna.sif','r'),output_file+'_no_mrna_symbol.sif',idfile)

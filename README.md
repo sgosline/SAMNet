@@ -24,7 +24,10 @@ System Requirements:
 
 4- AMPL: http://www.ampl.com/DOWNLOADS/index.html
 
-5- cplexamp or some other solver that will work with AMPL: http://www.ampl.com/CPLEX/#academic
+5- cplexamp or some other solver that will work with AMPL:
+http://www.ampl.com/CPLEX/#academic
+
+6-The Python SOAP library, suds: https://pypi.python.org/pypi/suds
 
 
 ------------------------------------------------------------------------------------------------

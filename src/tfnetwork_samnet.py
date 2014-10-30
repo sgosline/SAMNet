@@ -78,6 +78,7 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
     Primary code to parse transcriptional file into network object
     '''
     #initialize graph 
+    #print ','.join(expressed_prot_list)
 
     transcription_graph = networkx.DiGraph()
     if len(transcriptional_network_weight_data)==0:
@@ -89,7 +90,7 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
     p300ids=['EP300','Ep300','icrogid:820620', 'icrogid:4116836','EP300_HUMAN']
     for item in transcriptional_network_weight_data:
         #list containing tf mRNA and weight
-        list_tf_mrna_weight = item.split('\t')
+        list_tf_mrna_weight = item.strip().split()
         #1st element is the transcription factor
         tf = list_tf_mrna_weight[0].strip()
         if tf in p300ids or tf.upper() in p300ids:
@@ -147,13 +148,13 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
 #moved from original responsenet code
 #modified by sgosline to include an option to only 
 #select up- or down-regulated genes
-def get_weights_mRNA_sink(tradatadict, foldtraOrPValue='foldchange',upOrDown='',addMrna=True):
+def get_weights_mRNA_sink(tradatadict, foldtraOrPValue='foldchange',upOrDown='',addMrna=True,doUpper=False):
     
     meta_weights_dict={}
     for k in tradatadict.keys():
         weights_sink = {}
         for item in tradatadict[k]:
-            fields = item.strip('\r\n').split('\t')
+            fields = item.strip('\r\n').split()
         #mRNA name
             mrna_name = fields[0].strip()
 
@@ -164,6 +165,8 @@ def get_weights_mRNA_sink(tradatadict, foldtraOrPValue='foldchange',upOrDown='',
                 pval = fields[2].strip()
             else:
                 pval = 0.0
+            if doUpper:
+                mrna_name=mrna_name.upper()
             if addMrna:
                 mname=mrna_name+'mrna'
             else:
@@ -391,8 +394,10 @@ def make_tf_data_into_network(tf_file,addmrna=True,expressed_prot_list=[],doUppe
     '''
     #figure out file format
     ext=tf_file.split('.')[-1]
-    if ext.lower()=='pkl':
-        print 'Determined '+tf_file+' is PKL, loading...'
+    
+    #if ext.lower()=='pkl':
+    #    print 'Determined '+tf_file+' is PKL, loading...'
+    try:
         tfobj=pickle.load(open(tf_file,'rU'))
         ##now test for object type
         if type(tfobj) is dict:
@@ -405,8 +410,8 @@ def make_tf_data_into_network(tf_file,addmrna=True,expressed_prot_list=[],doUppe
             print 'Pickled object unknown, returning empty digraph'
             tfnet=networkx.DiGraph()
 
-    else:
-        print 'Deteremined '+tf_file+' is txt'
+    except:
+        print tf_file+' is not picklable, assuming text'
         tfnet=get_transcriptional_network(open(tf_file,'rU').readlines(),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
 
 

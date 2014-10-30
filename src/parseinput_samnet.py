@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 '''
 
-import re,math,networkx,collections
+import re,math,networkx,collections,pickle
 
 def get_weights_phen_source(phendatadict):   
 
@@ -35,7 +35,7 @@ def get_weights_phen_source(phendatadict):
     #keys of this dictionary will be all proteins from the genes of the phenotypic dataset
     return weights_source
 
-def by_comm_into_one_dict(argument_file_containing_comm):
+def by_comm_into_one_dict(argument_file_containing_comm,doUpper=False):
     '''
     Takes multiple file arguments but parses them into separate elements of a dictionary
     New function for multi-source
@@ -47,12 +47,15 @@ def by_comm_into_one_dict(argument_file_containing_comm):
     treats=set()
     mrna=set()
     for l in lines:
-        arr=l.split('\t')
+        arr=l.strip().split()
         treats.add(arr[0])
         if arr[0]+'_treatment' not in alldata:
             alldata[arr[0]+'_treatment']=[]
         alldata[arr[0]+'_treatment'].append(arr[1]+'\t'+arr[2])
-        mrna.add(arr[1])
+        if doUpper:
+            mrna.add(arr[1].upper())
+        else:
+            mrna.add(arr[1])
 
     return alldata,[a for a in treats],[a for a in mrna]
 
@@ -205,3 +208,41 @@ def renormalizeDictionaryweights(ppi,type='ecdf'):
 
     return ppi
 
+
+def get_ppi_network(networkfile):
+    '''
+    First figure out if the file is a pickle or a text file, then make into network if text
+    '''
+    #figure out file format
+    ext=networkfile.split('.')[-1]
+
+#        print 'Determined '+networkfile+' is PKL, loading...'
+    try:
+        ppinet=pickle.load(open(networkfile,'rU'))
+        ##now test for object type
+        if type(ppinet) is networkx.DiGraph:
+            print 'Unpickled is networkX, returning'
+        else:
+            print 'Pickled object unknown, returning empty digraph'
+            ppinet=networkx.DiGraph()
+
+    except:
+        print networkfile+' is Not pickle, assuming text'
+        ppinet=networkx.DiGraph()
+        for row in open(networkfile,'rU').readlines():
+            arr=row.strip().split()
+            if len(arr)!=3:
+                continue
+            prot1=arr[0]
+            prot2=arr[1]
+            weight=float(arr[2])
+            if weight==1.0:
+                weight=0.999999
+            ppinet.add_edge(prot1,prot2,{'weight':weight})
+            ppinet.add_edge(prot2,prot1,{'weight':weight})
+        
+    
+
+    print "Returning "+str(ppinet.number_of_edges())+' PPI interaction scores'
+
+    return ppinet
