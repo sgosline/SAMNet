@@ -338,456 +338,457 @@ def writeamplfile(wholename, solver):
 
 
 
-#creates the dat file
-def writeorigdatfile(big_PPI,trares,phenres,mirnares,outputfilename,source,sink, cap):
+# #creates the dat file
+# def writeorigdatfile(big_PPI,trares,phenres,mirnares,outputfilename,source,sink, cap,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):
 
-    #print this on the screen, but it is not appearing in the dat file    
-    print "vertices number:", len(big_PPI.nodes())
+#     #print this on the screen, but it is not appearing in the dat file    
+#    # print "vertices number:", len(big_PPI.nodes())
 
-    #open the dat file
-    file=open(outputfilename+'.dat','w')
-    print 'Writing network with '+str(len(big_PPI.nodes()))+' nodes and '+str(len(big_PPI.edges()))+' edges'
-
-    #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
+#     #open the dat file
+#     file=open(outputfilename+'.dat','w')
+#     print 'Writing network with '+str(len(big_PPI.nodes()))+' nodes and '+str(len(big_PPI.edges()))+' edges'
+#     #print ','.join(big_PPI.nodes())
+#     #print source,sink
+#     #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
 				
-    # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
-    total_sink_weights=0
-    for i in trares:
-        total_sink_weights=total_sink_weights+big_PPI.get_edge_data(i,sink)['weight']
+#     # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
+#     total_sink_weights=0
+#     for i in trares:
+#         total_sink_weights=total_sink_weights+big_PPI.get_edge_data(i,sink)['weight']
 
-    total_source_weights=0
-    for i in phenres:
-        total_source_weights=total_source_weights+big_PPI.get_edge_data(source,i)['weight']
-
-
-    #START WRITING .DAT FILE    
-    # start writing on the dat file defining the set of proteins
-    #write all nodes of the graph (proteins and mRNA, but not source and sink)
-    file.write('set proteins := ')
-    proteins=big_PPI.nodes()	
-    for i in proteins:
-        if i!=sink and i!=source:
-            file.write('"'+i+'"'+' ')
-    file.write(';\n')
-
-    #write down the source and sink
-    file.write('set sourcesink := '+sink+' '+source+' ;\n')
+#     total_source_weights=0
+#     for i in phenres:
+#         total_source_weights=total_source_weights+big_PPI.get_edge_data(source,i)['weight']
 
 
+#     #START WRITING .DAT FILE    
+#     # start writing on the dat file defining the set of proteins
+#     #write all nodes of the graph (proteins and mRNA, but not source and sink)
+#     file.write('set proteins := ')
+#     proteins=big_PPI.nodes()	
+#     for i in proteins:
+#         if i!=sink and i!=source:
+#             file.write('"'+i+'"'+' ')
+#     file.write(';\n')
 
-    #INTERACTIONS
-    #define the interactions
-    file.write('set interactions := ')
+#     #write down the source and sink
+#     file.write('set sourcesink := '+sink+' '+source+' ;\n')
 
-    #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
+
+
+#     #INTERACTIONS
+#     #define the interactions
+#     file.write('set interactions := ')
+
+#     #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
 		
-    for two_edge_nodes in big_PPI.edges():
-        file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
+#     for two_edge_nodes in big_PPI.edges():
+#         file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
 
-    file.write(';\n')
+#     file.write(';\n')
 
 
-    #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
-    file.write('set source_interactions := ')
-    for i in phenres:
-        file.write('('+source+',\"'+i+'\") ')			
-    file.write(';\n')
+#     #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
+#     file.write('set source_interactions := ')
+#     for i in phenres:
+#         file.write('('+source+',\"'+i+'\") ')			
+#     file.write(';\n')
 
-    file.write('set sink_interactions :=')
-    for i in trares:
-        file.write('(\"'+i+'\",'+sink+') ')			
-    file.write(';\n')
-
-    
-    #CAPACITIES
-    # write the capacities
-    file.write('\nparam capacity default 1:=\n')
-    for i in phenres:
-        file.write(source+' \"'+i+'\"\t'+str(float(big_PPI.get_edge_data(source,i)['weight'])/(total_source_weights))+'\n')			
-    for i in trares:
-        file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')			
-    file.write(';\n')
-
-    #COST
-    #write the cost
-    #make sure to cap costs
-    file.write('\nparam \tcost :=\n')
+#     file.write('set sink_interactions :=')
+#     for i in trares:
+#         file.write('(\"'+i+'\",'+sink+') ')			
+#     file.write(';\n')
 
     
-    #costs are only between proteins and proteins or proteins and mRNA
-    for protein in big_PPI:
-        if (protein!=source):
-            for neighbors in big_PPI.successors(protein):
+#     #CAPACITIES
+#     # write the capacities
+#     file.write('\nparam capacity default 1:=\n')
+#     for i in phenres:
+#         file.write(source+' \"'+i+'\"\t'+str(float(big_PPI.get_edge_data(source,i)['weight'])/(total_source_weights))+'\n')			
+#     for i in trares:
+#         file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')			
+#     file.write(';\n')
 
-                if (neighbors!=sink):
-                    weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
-                    if weight >= cap:
-                        weight=cap
-                    if weight ==0:
-                        print "zero weight: "+protein +' '+neighbors#
-                        #continue
-                        weight=0.00001
+#     #COST
+#     #write the cost
+#     #make sure to cap costs
+#     file.write('\nparam \tcost :=\n')
+
+    
+#     #costs are only between proteins and proteins or proteins and mRNA
+#     for protein in big_PPI:
+#         if (protein!=source):
+#             for neighbors in big_PPI.successors(protein):
+
+#                 if (neighbors!=sink):
+#                     weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
+#                     if weight >= cap:
+#                         weight=cap
+#                     if weight ==0:
+#                         print "zero weight: "+protein +' '+neighbors#
+#                         #continue
+#                         weight=0.00001
 
                     
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
-                #mrna->sink
-                else:
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
-        else:
-            #source->prot
-            for neighbors in big_PPI.successors(protein):
-                file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
+#                 #mrna->sink
+#                 else:
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
+#         else:
+#             #source->prot
+#             for neighbors in big_PPI.successors(protein):
+#                 file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
 
-    file.write(';')
-    file.close()
+#     file.write(';')
+#     file.close()
    
 
-def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,source,sink, cap):
-    #print this on the screen, but it is not appearing in the dat file    
-    print "vertices number:", len(big_PPI.nodes())
-    if len(mirnares)==0:
-        'Wrong function, call original writedatfile'
-        return
-    #open the dat file
-    file=open(outputfilename+'.dat','w')
+# def writedatfile_with_dummies(big_PPI,trares,phenres,mirnares,outputfilename,source,sink, cap):
+#     #print this on the screen, but it is not appearing in the dat file    
+#     print "vertices number:", len(big_PPI.nodes())
+#     if len(mirnares)==0:
+#         'Wrong function, call original writedatfile'
+#         return
+#     #open the dat file
+#     file=open(outputfilename+'.dat','w')
 
-    #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
+#     #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
 				
-    # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
-    total_sink_weights=0
-    for i in trares:
-        total_sink_weights=total_sink_weights+big_PPI.get_edge_data(i,sink)['weight']
+#     # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
+#     total_sink_weights=0
+#     for i in trares:
+#         total_sink_weights=total_sink_weights+big_PPI.get_edge_data(i,sink)['weight']
 
-    total_source_weights=1
+#     total_source_weights=1
     
-    total_indirect_weights=0
-    for i in phenres:
-        total_indirect_weights=total_indirect_weights+big_PPI.get_edge_data('indirect',i)['weight']
+#     total_indirect_weights=0
+#     for i in phenres:
+#         total_indirect_weights=total_indirect_weights+big_PPI.get_edge_data('indirect',i)['weight']
     
-    total_direct_weights=0
-    if len(mirnares)>0:
-        for i in mirnares:
-            total_direct_weights=total_direct_weights+big_PPI.get_edge_data('direct',i)['weight']
+#     total_direct_weights=0
+#     if len(mirnares)>0:
+#         for i in mirnares:
+#             total_direct_weights=total_direct_weights+big_PPI.get_edge_data('direct',i)['weight']
             
-    print 'sink weights:',str(total_sink_weights),'indirect weights:',str(total_indirect_weights),'direct weights:',str(total_direct_weights)
+#     print 'sink weights:',str(total_sink_weights),'indirect weights:',str(total_indirect_weights),'direct weights:',str(total_direct_weights)
 
-    #START WRITING .DAT FILE    
-    # start writing on the dat file defining the set of proteins
-    #write all nodes of the graph (proteins and mRNA, but NOT source and sink)
-    file.write('set proteins := ')
-    proteins=big_PPI.nodes()	
-    for i in proteins:
-        if i!=sink and i!=source:
-            file.write('\"'+i+'\" ')
-    file.write(';\n')
+#     #START WRITING .DAT FILE    
+#     # start writing on the dat file defining the set of proteins
+#     #write all nodes of the graph (proteins and mRNA, but NOT source and sink)
+#     file.write('set proteins := ')
+#     proteins=big_PPI.nodes()	
+#     for i in proteins:
+#         if i!=sink and i!=source:
+#             file.write('\"'+i+'\" ')
+#     file.write(';\n')
 
-    #write down the source and sink
-    file.write('set sourcesink := '+sink+' '+source+' ;\n')
+#     #write down the source and sink
+#     file.write('set sourcesink := '+sink+' '+source+' ;\n')
 
 
-    #INTERACTIONS
-    #define the interactions
-    file.write('set interactions := ')
+#     #INTERACTIONS
+#     #define the interactions
+#     file.write('set interactions := ')
 
-    #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
+#     #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
 		
-    for two_edge_nodes in big_PPI.edges():
-        file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
+#     for two_edge_nodes in big_PPI.edges():
+#         file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
 
-    file.write(';\n')
+#     file.write(';\n')
 
 
-    #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
-    file.write('set source_interactions := ')
+#     #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
+#     file.write('set source_interactions := ')
 
-    ##if we're using mirnas, connect source to direct/indirect. 
-    file.write('('+source+','+'direct) ')
-    file.write('('+source+','+'indirect) ')
+#     ##if we're using mirnas, connect source to direct/indirect. 
+#     file.write('('+source+','+'direct) ')
+#     file.write('('+source+','+'indirect) ')
 
-    file.write(';\n')
+#     file.write(';\n')
 
-    file.write('set sink_interactions :=')
-    for i in trares:
-        file.write('(\"'+i+'\",'+sink+') ')			
-    file.write(';\n')
-
-    
-    #CAPACITIES
-    # write the capacities -- only for edges going out of source or into sink
-    file.write('\nparam capacity default 1:=\n')
-    file.write(source+' '+'direct'+'\t'+'0.5'+'\n')
-    file.write(source+' '+'indirect'+'\t'+'0.5'+'\n')
-    
-    for i in trares:
-        file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')
-
+#     file.write('set sink_interactions :=')
+#     for i in trares:
+#         file.write('(\"'+i+'\",'+sink+') ')			
+#     file.write(';\n')
 
     
-    ##now add in hierarchical capactities
-    other_node_caps={}
-    for comm in node_caps.keys():
-        for node in node_caps[comm].keys():
-            if node in other_node_caps.keys():
-                mval=max(other_node_caps[node],node_caps[comm][node])
-            else:
-                mval=node_caps[comm][node]
+#     #CAPACITIES
+#     # write the capacities -- only for edges going out of source or into sink
+#     file.write('\nparam capacity default 1:=\n')
+#     file.write(source+' '+'direct'+'\t'+'0.5'+'\n')
+#     file.write(source+' '+'indirect'+'\t'+'0.5'+'\n')
+    
+#     for i in trares:
+#         file.write('\"'+i+'\" '+sink+'\t'+str(float(big_PPI.get_edge_data(i,sink)['weight'])/(total_sink_weights))+'\n')
 
-    ##now write all to file
-    for i in other_node_caps.keys():
-        if i not in all_tra_caps.keys() and i!=source:
-            for suc in networkx.neighbors(i):
-                file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
+
+    
+#     ##now add in hierarchical capactities
+#     other_node_caps={}
+#     for comm in node_caps.keys():
+#         for node in node_caps[comm].keys():
+#             if node in other_node_caps.keys():
+#                 mval=max(other_node_caps[node],node_caps[comm][node])
+#             else:
+#                 mval=node_caps[comm][node]
+
+#     ##now write all to file
+#     for i in other_node_caps.keys():
+#         if i not in all_tra_caps.keys() and i!=source:
+#             for suc in networkx.neighbors(i):
+#                 file.write('\"'+i+'\" '+suc+'\t'+str(float(other_node_caps[i]))+'\n')
                 
-    file.write(';\n')
+#     file.write(';\n')
 
-    #COST
-    #write the cost
-    #make sure to cap costs
-    file.write('\nparam:\tcost :=\n')
+#     #COST
+#     #write the cost
+#     #make sure to cap costs
+#     file.write('\nparam:\tcost :=\n')
 
-##    if(len(mirnares)>0):
- ##       for i in phenres:
-  ##          file.write('indirect'+' '+i+'\t'+str(float(big_PPI.get_edge_data('indirect',i)['weight'])/(total_indirect_weights))+'\n')	
-#        for i in mirnares:
-#            file.write('direct'+' '+i+'\t'+str(float(big_PPI.get_edge_data('direct',i)['weight'])/(total_direct_weights))+'\n')
+# ##    if(len(mirnares)>0):
+#  ##       for i in phenres:
+#   ##          file.write('indirect'+' '+i+'\t'+str(float(big_PPI.get_edge_data('indirect',i)['weight'])/(total_indirect_weights))+'\n')	
+# #        for i in mirnares:
+# #            file.write('direct'+' '+i+'\t'+str(float(big_PPI.get_edge_data('direct',i)['weight'])/(total_direct_weights))+'\n')
 
-    #costs are only between proteins and proteins or proteins and mRNA
-    for protein in big_PPI:
-        if (protein!=source):
-            for neighbors in big_PPI.successors(protein):
-                if (neighbors!=sink):
-                    weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
-                    if weight >= cap:
-                        weight=cap
-                    if weight ==0:
-                        print "zero weight: "+protein +' '+neighbors
-                        weight=0.00001
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
-                #mrna->sink
-                else:
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
-        elif protein==source:
-            #source->prot
-            for neighbors in big_PPI.successors(protein):
-                file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
-#        elif protein=='direct' and len(mirnares)>0:
-#            for neighbors in big_PPI.neighbors(protein):
-#                file.write(protein+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
-#        else:
-#            for neighbors in big_PPI.neighbors(protein):
-#                file.write(source+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
+#     #costs are only between proteins and proteins or proteins and mRNA
+#     for protein in big_PPI:
+#         if (protein!=source):
+#             for neighbors in big_PPI.successors(protein):
+#                 if (neighbors!=sink):
+#                     weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
+#                     if weight >= cap:
+#                         weight=cap
+#                     if weight ==0:
+#                         print "zero weight: "+protein +' '+neighbors
+#                         weight=0.00001
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
+#                 #mrna->sink
+#                 else:
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
+#         elif protein==source:
+#             #source->prot
+#             for neighbors in big_PPI.successors(protein):
+#                 file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
+# #        elif protein=='direct' and len(mirnares)>0:
+# #            for neighbors in big_PPI.neighbors(protein):
+# #                file.write(protein+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
+# #        else:
+# #            for neighbors in big_PPI.neighbors(protein):
+# #                file.write(source+' '+neighbors+'\t'+str(float(big_PPI.get_edge_data(protein,neighbors)['weight'])/(total_indirect_weights))+'\n')
 
-    file.write(';')
-    file.close()
-
-
-def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,outputfilename,source,sink,cap,usetargetcapacity=True,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
-    '''
-    Third version of writedatafile_* that incorporates multiple treatments
-    '''
+#     file.write(';')
+#     file.close()
 
 
-    #print this on the screen, but it is not appearing in the dat file    
-    print "vertices number:", len(big_PPI.nodes())
-    #open the dat file
+# def writedatfile_with_multiple_treatments(big_PPI,trares,phenres,mirnares,outputfilename,source,sink,cap,usetargetcapacity=True,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+#     '''
+#     Third version of writedatafile_* that incorporates multiple treatments
+#     '''
 
-    file=open(outputfilename+'.dat','w')
 
-    #print 'Source:'+source,', sink:'+sink
-    #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
+#     #print this on the screen, but it is not appearing in the dat file    
+#     print "vertices number:", len(big_PPI.nodes())
+#     #open the dat file
+
+#     file=open(outputfilename+'.dat','w')
+
+#     #print 'Source:'+source,', sink:'+sink
+#     #SUM WEIGHTS SOURCE-PHEN AND MRNA-SINK (USE LATER FOR CAPACITY)
 				
-    # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
-    total_sink_weights=0
-    for treat in big_PPI.predecessors(sink):
-        total_sink_weights=total_sink_weights+big_PPI.get_edge_data(treat,sink)['weight']
+#     # sum the weights associated to the genetic and transcriptional data. They will be used for normalization.
+#     total_sink_weights=0
+#     for treat in big_PPI.predecessors(sink):
+#         total_sink_weights=total_sink_weights+big_PPI.get_edge_data(treat,sink)['weight']
 
-    total_source_weights=0 ##
-    for treat in big_PPI.successors(source):
-        total_source_weights=total_source_weights+big_PPI.get_edge_data(source,treat)['weight']
+#     total_source_weights=0 ##
+#     for treat in big_PPI.successors(source):
+#         total_source_weights=total_source_weights+big_PPI.get_edge_data(source,treat)['weight']
 
             
-    print 'sink weights:',str(total_sink_weights),'source weights: '+str(total_source_weights)#indirect weights:',str(total_indirect_weights),'direct weights:',str(total_direct_weights)
+#     print 'sink weights:',str(total_sink_weights),'source weights: '+str(total_source_weights)#indirect weights:',str(total_indirect_weights),'direct weights:',str(total_direct_weights)
 
-    #START WRITING .DAT FILE    
-    # start writing on the dat file defining the set of proteins
-    #write all nodes of the graph (proteins and mRNA, but NOT source and sink)
-    file.write('set proteins := ')
-    proteins=big_PPI.nodes()	
-    for i in proteins:
-        if i!=sink and i!=source:
-            file.write('\"'+i+'\" ')
-    file.write(';\n')
+#     #START WRITING .DAT FILE    
+#     # start writing on the dat file defining the set of proteins
+#     #write all nodes of the graph (proteins and mRNA, but NOT source and sink)
+#     file.write('set proteins := ')
+#     proteins=big_PPI.nodes()	
+#     for i in proteins:
+#         if i!=sink and i!=source:
+#             file.write('\"'+i+'\" ')
+#     file.write(';\n')
 
-    #write down the source and sink
-#    file.write('set sourcesink := '+sink+' '+source+' ;\n')
-    file.write('set sourcesink := \"'+sink+'\" \"'+source+'\" ')
-    if usetargetcapacity:
-        all_neighbors=big_PPI.successors(source)
-        all_neighbors.update(big_PPI.predecessors(sink))
-        for treat in all_neighbors:
-            file.write('\"'+treat+'\" ')
-#        for treat_s in big_PPI.predecessors(sink):
-#            file.write('\"'+treat_s+'\" ')
+#     #write down the source and sink
+# #    file.write('set sourcesink := '+sink+' '+source+' ;\n')
+#     file.write('set sourcesink := \"'+sink+'\" \"'+source+'\" ')
+#     if usetargetcapacity:
+#         all_neighbors=big_PPI.successors(source)
+#         all_neighbors.update(big_PPI.predecessors(sink))
+#         for treat in all_neighbors:
+#             file.write('\"'+treat+'\" ')
+# #        for treat_s in big_PPI.predecessors(sink):
+# #            file.write('\"'+treat_s+'\" ')
         
-    file.write(';\n')
+#     file.write(';\n')
 
 
-    #INTERACTIONS
-    #define the interactions
-    file.write('set interactions := ')
+#     #INTERACTIONS
+#     #define the interactions
+#     file.write('set interactions := ')
 
-    #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
+#     #since our graph is directed, all we need for interactions is to print information about all edges of the big_PPI (proteins, TF, mRNA, sourcem sink are all included)
 		
-    for two_edge_nodes in big_PPI.edges():
-        file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
+#     for two_edge_nodes in big_PPI.edges():
+#         file.write("(\""+two_edge_nodes[0]+"\",\""+two_edge_nodes[1]+"\")")
 
-    file.write(';\n')
-
-
-    #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
-    file.write('set source_interactions := ')
-
-    ##if we're using mirnas, connect source to direct/indirect. 
-    for treat in big_PPI.successors(source):
-        file.write('(\"'+source+'\",\"'+treat+'\") ')
-        if usetargetcapacity:
-            for targ in big_PPI.neighbors(treat):
-                file.write('(\"'+treat+'\",\"'+targ+'\") ')
+#     file.write(';\n')
 
 
-    file.write(';\n')
+#     #SOURCE-PHEN AND MRNA-SINK INTERACTIONS
+#     file.write('set source_interactions := ')
 
-    file.write('set sink_interactions :=')
-    for treat in big_PPI.predecessors(sink):
-        file.write('(\"'+treat+'\",\"'+sink+'\") ')
-        if usetargetcapacity:
-            for i in big_PPI.predecessors(treat):
-                file.write('(\"'+i+'\",'+treat+') ')			
-    file.write(';\n')
+#     ##if we're using mirnas, connect source to direct/indirect. 
+#     for treat in big_PPI.successors(source):
+#         file.write('(\"'+source+'\",\"'+treat+'\") ')
+#         if usetargetcapacity:
+#             for targ in big_PPI.neighbors(treat):
+#                 file.write('(\"'+treat+'\",\"'+targ+'\") ')
+
+
+#     file.write(';\n')
+
+#     file.write('set sink_interactions :=')
+#     for treat in big_PPI.predecessors(sink):
+#         file.write('(\"'+treat+'\",\"'+sink+'\") ')
+#         if usetargetcapacity:
+#             for i in big_PPI.predecessors(treat):
+#                 file.write('(\"'+i+'\",'+treat+') ')			
+#     file.write(';\n')
 
     
-    #CAPACITIES
-    # write the capacities -- only for edges going out of source or into sink
-    file.write('\nparam capacity default 1:=\n')
+#     #CAPACITIES
+#     # write the capacities -- only for edges going out of source or into sink
+#     file.write('\nparam capacity default 1:=\n')
 
-    missed_caps=0
-    total_caps=0
-    other_node_caps={}
-    for treat in big_PPI.successors(source):#phenres.keys():
-        #if usetargetcapacity:
-        #    for targ in big_PPI.neighbors(treat):
-        #        file.write('\"'+treat+'\" \"'+targ+'\"\t'+str(float(big_PPI.get_edge_data(treat,targ)['weight']))+'\n')
-        ##now add in hierarchical capactities
-        ##now write all to file
+#     missed_caps=0
+#     total_caps=0
+#     other_node_caps={}
+#     for treat in big_PPI.successors(source):#phenres.keys():
+#         #if usetargetcapacity:
+#         #    for targ in big_PPI.neighbors(treat):
+#         #        file.write('\"'+treat+'\" \"'+targ+'\"\t'+str(float(big_PPI.get_edge_data(treat,targ)['weight']))+'\n')
+#         ##now add in hierarchical capactities
+#         ##now write all to file
 
                     
-        ##this is oana's code, not using right now###############################
-        #don't need this anymore...
-        if de_cap=='none' or de_cap=='sink':
-            file.write('\"'+source+'\" \"'+treat+'\"\t'+str(float(big_PPI.get_edge_data(source,treat)['weight'])/(total_source_weights))+'\n')
-        elif de_cap=='source':
-            #first check to see if the diff_ex_values is in the keys, this means that we need to select
-            if source in diff_ex_vals.keys():##single source
-                dev=diff_ex_vals[source]
-                #print 'Got '+str(len(dev))+' diff ex vals for '+source
-                if treat in dev.keys():
-                    val=dev[treat]/sum(dev.values())
-                elif treat not in phenres+mirnares:
-                    print treat+' not in network'
-                else:
-                    val=float(sum(dev.values()))/float(len(dev.values()))
-                    missed_caps+=1
-                    if(debug):
-                        print 'No differential expression value for '+treat+', using '+str(val)     
-                total_caps+=1
-                file.write('\"'+source+'\" \"'+treat+'"\t'+str(val)+'\n')
-            elif treat in diff_ex_vals.keys():##multiple sources
-                dev=diff_ex_vals[treat]
-                print 'Got '+str(len(dev))+' diff ex vals for '+treat
-                for targ in big_PPI.successors(treat):
-                    if targ in dev.keys():
-                        val=dev[targ]/sum(dev.values())
-                    elif targ not in phenres+mirnares:
-                        print targ+' not in network'
-                    else:
-                        val=float(sum(dev.values()))/float(len(dev.values()))
-                        missed_caps+=1
-                        if debug:
-                            print 'No differential expression value for '+targ+', using '+str(val)
-                    total_caps+=1
-                    file.write('\"'+treat+'\" \"'+targ+'"\t'+str(val)+'\n')
-            else:
-                "No differential expression values for node "+source+" or "+treat
+#         ##this is oana's code, not using right now###############################
+#         #don't need this anymore...
+#         if de_cap=='none' or de_cap=='sink':
+#             file.write('\"'+source+'\" \"'+treat+'\"\t'+str(float(big_PPI.get_edge_data(source,treat)['weight'])/(total_source_weights))+'\n')
+#         elif de_cap=='source':
+#             #first check to see if the diff_ex_values is in the keys, this means that we need to select
+#             if source in diff_ex_vals.keys():##single source
+#                 dev=diff_ex_vals[source]
+#                 #print 'Got '+str(len(dev))+' diff ex vals for '+source
+#                 if treat in dev.keys():
+#                     val=dev[treat]/sum(dev.values())
+#                 elif treat not in phenres+mirnares:
+#                     print treat+' not in network'
+#                 else:
+#                     val=float(sum(dev.values()))/float(len(dev.values()))
+#                     missed_caps+=1
+#                     if(debug):
+#                         print 'No differential expression value for '+treat+', using '+str(val)     
+#                 total_caps+=1
+#                 file.write('\"'+source+'\" \"'+treat+'"\t'+str(val)+'\n')
+#             elif treat in diff_ex_vals.keys():##multiple sources
+#                 dev=diff_ex_vals[treat]
+#                 print 'Got '+str(len(dev))+' diff ex vals for '+treat
+#                 for targ in big_PPI.successors(treat):
+#                     if targ in dev.keys():
+#                         val=dev[targ]/sum(dev.values())
+#                     elif targ not in phenres+mirnares:
+#                         print targ+' not in network'
+#                     else:
+#                         val=float(sum(dev.values()))/float(len(dev.values()))
+#                         missed_caps+=1
+#                         if debug:
+#                             print 'No differential expression value for '+targ+', using '+str(val)
+#                     total_caps+=1
+#                     file.write('\"'+treat+'\" \"'+targ+'"\t'+str(val)+'\n')
+#             else:
+#                 "No differential expression values for node "+source+" or "+treat
 
 
-        else:
-            print ("Diffex capacities for all nodes not yet implemented")
+#         else:
+#             print ("Diffex capacities for all nodes not yet implemented")
         
-    #End diffex capping stuff#############################################
-    if debug:
-        print 'Missed '+str(missed_caps)+' diffex vals for '+source+' out of '+str(total_caps)
+#     #End diffex capping stuff#############################################
+#     if debug:
+#         print 'Missed '+str(missed_caps)+' diffex vals for '+source+' out of '+str(total_caps)
 
-    ##now write out node capacities, only for 1 source
-    for node in node_caps[source].keys():
-#        if node in other_node_caps.keys():
-#            mval=max(other_node_caps[node],node_caps[source][node])
-#        else:
-        other_node_caps[node]=node_caps[source][node]
-        #print 'Node capacity for '+node+' in commodity '+source+' is '+str(mval)
+#     ##now write out node capacities, only for 1 source
+#     for node in node_caps[source].keys():
+# #        if node in other_node_caps.keys():
+# #            mval=max(other_node_caps[node],node_caps[source][node])
+# #        else:
+#         other_node_caps[node]=node_caps[source][node]
+#         #print 'Node capacity for '+node+' in commodity '+source+' is '+str(mval)
 
-    for i in other_node_caps.keys():
-        if i not in big_PPI.predecessors(sink) and i!=source:
-            for suc in big_PPI.successors(i):
-                #print 'Edge capacity from '+i+' to '+suc+' is '+str(float(other_node_caps[i]))
-                file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
+#     for i in other_node_caps.keys():
+#         if i not in big_PPI.predecessors(sink) and i!=source:
+#             for suc in big_PPI.successors(i):
+#                 #print 'Edge capacity from '+i+' to '+suc+' is '+str(float(other_node_caps[i]))
+#                 file.write('\"'+i+'\" \"'+suc+'\"\t'+str(float(other_node_caps[i]))+'\n')
 
-    for treat in big_PPI.predecessors(sink):
-        file.write('\"'+treat+'\" \"'+sink+'\"\t'+str(float(big_PPI.get_edge_data(treat,sink)['weight'])/(total_sink_weights))+'\n')	
-        if usetargetcapacity:
-            for targ in big_PPI.predecessors(treat):
-                file.write('\"'+targ+'\" \"'+treat+'\"\t'+str(float(big_PPI.get_edge_data(targ,treat)['weight']))+'\n')
-    file.write(';\n')
+#     for treat in big_PPI.predecessors(sink):
+#         file.write('\"'+treat+'\" \"'+sink+'\"\t'+str(float(big_PPI.get_edge_data(treat,sink)['weight'])/(total_sink_weights))+'\n')	
+#         if usetargetcapacity:
+#             for targ in big_PPI.predecessors(treat):
+#                 file.write('\"'+targ+'\" \"'+treat+'\"\t'+str(float(big_PPI.get_edge_data(targ,treat)['weight']))+'\n')
+#     file.write(';\n')
 
-    #COST
-    #write the cost
-    #make sure to cap costs
-    file.write('\nparam:\tcost :=\n')
+#     #COST
+#     #write the cost
+#     #make sure to cap costs
+#     file.write('\nparam:\tcost :=\n')
 
-    #costs are only between proteins and proteins or proteins and mRNA
-    for protein in big_PPI:
-        if (protein!=source):
-            for neighbors in big_PPI.successors(protein):
-                if (neighbors!=sink):
-                    weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
-                    if weight >= cap:
-                        print 'Capped ('+str(cap)+') weight: '+protein+' '+neighbors+' '+str(weight)
-                        weight=cap
+#     #costs are only between proteins and proteins or proteins and mRNA
+#     for protein in big_PPI:
+#         if (protein!=source):
+#             for neighbors in big_PPI.successors(protein):
+#                 if (neighbors!=sink):
+#                     weight = float(big_PPI.get_edge_data(protein,neighbors)['weight'])
+#                     if weight >= cap:
+#                         print 'Capped ('+str(cap)+') weight: '+protein+' '+neighbors+' '+str(weight)
+#                         weight=cap
 
-                    if weight ==0:
-                        weight=0.0001
-                        print "zero weight: "+protein +' '+neighbors
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
-                #mrna->sink
-                else:
-                    file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
-        elif protein==source:
-            #source->prot
-            for neighbors in big_PPI.successors(protein):
-                file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
+#                     if weight ==0:
+#                         weight=0.0001
+#                         print "zero weight: "+protein +' '+neighbors
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(weight)+'\n')
+#                 #mrna->sink
+#                 else:
+#                     file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_sink_weights))+'\n')
+#         elif protein==source:
+#             #source->prot
+#             for neighbors in big_PPI.successors(protein):
+#                 file.write('\"'+protein+'\" \"'+neighbors+'\"\t'+str(float(big_PPI.get_edge_data(protein, neighbors)['weight'])/(total_source_weights))+'\n')
 
-    file.write(';')
-    file.close()
+#     file.write(';')
+#     file.close()
 
 
-#def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
-def write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):
-#    print de_cap
-    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
-#    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
+#def write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapa# city=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
+# def write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):
+# #    print de_cap
+#     writeorigdatfile(PPI_with_weights, trares, phenres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
+# #    writedatfile_with_multiple_treatments(PPI_with_weights, trares, phenres,directres,output,source,sink,cap,usetargetcapacity,diff_ex_vals,de_cap,node_caps,debug)        
 
-    writechangeflow(output,gamma,sinkGamma)
-    # create ampl file
-    writeamplfile(output,solver)
+#     writechangeflow(output,gamma,sinkGamma)
+#     # create ampl file
+#     writeamplfile(output,solver)
 
 #def write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False):
 def write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,gamma,solver,usetargetcapacity=False,diff_ex_vals=dict(),de_cap='sink',node_caps={},debug=False,sinkGamma=False):

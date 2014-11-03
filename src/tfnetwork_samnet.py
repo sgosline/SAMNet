@@ -100,6 +100,7 @@ def get_transcriptional_network(transcriptional_network_weight_data,addmrna=True
         mRNA = list_tf_mrna_weight[1].strip()
         ##uppercase them both
         if doUpper:
+            expressed_prot_list=[a.upper() for a in expressed_prot_list]
             tf=tf.upper()
             mRNA=mRNA.upper()
 
@@ -155,6 +156,7 @@ def get_weights_mRNA_sink(tradatadict, foldtraOrPValue='foldchange',upOrDown='',
         weights_sink = {}
         for item in tradatadict[k]:
             fields = item.strip('\r\n').split()
+            print fields
         #mRNA name
             mrna_name = fields[0].strip()
 

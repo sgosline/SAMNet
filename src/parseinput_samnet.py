@@ -48,15 +48,16 @@ def by_comm_into_one_dict(argument_file_containing_comm,doUpper=False):
     mrna=set()
     for l in lines:
         arr=l.strip().split()
+        m=arr[1].strip()
+        if doUpper:
+            m=m.upper()
         treats.add(arr[0])
         if arr[0]+'_treatment' not in alldata:
             alldata[arr[0]+'_treatment']=[]
-        alldata[arr[0]+'_treatment'].append(arr[1]+'\t'+arr[2])
-        if doUpper:
-            mrna.add(arr[1].upper())
-        else:
-            mrna.add(arr[1])
+        alldata[arr[0]+'_treatment'].append(m+'\t'+arr[2])
+        mrna.add(m)
 
+    #print ','.join(mrna)
     return alldata,[a for a in treats],[a for a in mrna]
 
 def get_direct_target_weights(targ_dict):
@@ -209,9 +210,11 @@ def renormalizeDictionaryweights(ppi,type='ecdf'):
     return ppi
 
 
-def get_ppi_network(networkfile):
+def get_ppi_network(networkfile,doUpper=False):
     '''
     First figure out if the file is a pickle or a text file, then make into network if text
+    networkfile: text or pickle file
+    doupper: make uppercase if try and in text file
     '''
     #figure out file format
     ext=networkfile.split('.')[-1]
@@ -235,6 +238,9 @@ def get_ppi_network(networkfile):
                 continue
             prot1=arr[0]
             prot2=arr[1]
+            if doUpper:
+                prot1=prot1.upper()
+                prot2=prot2.upper()
             weight=float(arr[2])
             if weight==1.0:
                 weight=0.999999

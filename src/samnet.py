@@ -137,7 +137,7 @@ def main():
 
     elif options.prot_weights_comm!='': 
         # using one comprehensive phos files for all commodities
-        lf,tn,expprots=parseIn.by_comm_into_one_dict(options.prot_weights_comm)
+        lf,tn,expprots=parseIn.by_comm_into_one_dict(options.prot_weights_comm,doUpper=(options.updateIds in ['human','mouse','yeast']))
         indirect_weights=parseIn.get_weights_phen_source(lf)
  
     else:
@@ -162,7 +162,7 @@ def main():
 
     #PPI comes as a pkl graph with weights already incorporated in the edge information, so no edge addition necessary
     #remember the PPI graph (has information from multiple graphs given from user input)
-    PPI_with_weights = parseIn.get_ppi_network(options.PPIfile)#networkx.read_gpickle(options.PPIfile)
+    PPI_with_weights = parseIn.get_ppi_network(options.PPIfile,doUpper=(options.updateIds in ['human','mouse','yeast']))#networkx.read_gpickle(options.PPIfile)
     PPI_with_weights = networkx.DiGraph(PPI_with_weights)
 #    if options.updateIds!='':
     ppi_str=ppi_str+'.  Using '+options.updateIds+' identifiers'
@@ -264,9 +264,9 @@ nn
     Note on identifiers: It is important that all identifiers match.  SAMNet assumes that mRNA nodes are a unique set from the protein interactions.  In practice, protein identifiers (including indirect targets of miRNA) are in STRING identifier format and mRNA are in gene name with 'mrna' appended to the end. 
     '''
     
-    if not doMCF:
-        doMCF=len(indirect_weights)>1 ##just double check!!
-
+    #if not doMCF:
+    #    doMCF=len(indirect_weights)>1 ##just double check!!
+    #doMCF=True
    # print indirect_weights.keys()
 #    if doMCF and len(node_caps)>0:
 #        print 'Selected to run in multi-commodity mode with hierarchical capacities.  This has not been tested yet!'
@@ -473,11 +473,11 @@ nn
         
 
 
-        if not doMCF:# and len(directres)==0:
+#        if not doMCF:# and len(directres)==0:
             ##this means that we're running the original RN
-            source=indirect_weights.keys()[0]
+#            source=indirect_weights.keys()[0]
 #        if len(mrna_weights)==1:
-            sink=mrna_weights.keys()[0]+'_sink'
+#            sink=mrna_weights.keys()[0]+'_sink'
 
 
         ##wait to add tf-> mrna weights until we know which tfs are in the network
@@ -501,7 +501,7 @@ nn
                          
 
         ##only add capacities on targets if 
-        if len(mrna_weights)>1 and not doMCF: ##parameter not used for MCF
+        if len(mrna_weights)>1:# and not doMCF: ##parameter not used for MCF
             target_cap=True
         else:
             target_cap=False
@@ -523,7 +523,7 @@ nn
 
         single_comms=[]
         sources,sinks=[],[]
-            
+        doMCF=True
         if doMCF:
             ##first write single commodity files
             if makeCombined:
@@ -544,9 +544,10 @@ nn
             output+='multiComm'
 #            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
             wf.write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
-        else:
+      #  else:
 #            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
-            wf.write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+
+       #     wf.write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         
         #execute loqo
         single_comms.append(output)
