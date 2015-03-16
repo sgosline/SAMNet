@@ -126,6 +126,13 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
         comm=''
         if mcf:
             comm=fields[2].strip()
+
+        if 'JUN D' in prot1:
+            prot1=re.sub("JUN D","JUND",prot1)
+            #print prot1
+        if 'JUN D' in prot2:
+            prot2=re.sub("JUN D","JUND",prot2)
+            #print prot2
         ##first check if prot1 is a source or multi source
         ##label this as pm interaction indicating non pp or pd
 
@@ -203,6 +210,10 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
                 #attrfile2.write(prot1+' = '+'transcriptionfactor'+'\n')
 
     #now go through all proteins in all sets and add attribute
+    #first, remove proteins from protein set if they are in tfs
+    for p in tfs:
+        if p in other_prots:
+            other_prots.remove(p)
     allprots=set()
     allprots.update(phens)
     allprots.update(mrnas)
@@ -291,7 +302,8 @@ def process_output(output_file,source='S', sink='T', idfname='',debug=False,de_f
     
     if not os.path.exists(output_file+'.txt'):
         print 'Output file missing'
-        return dict(),dict(),0.0,set(),set(),set()
+        return 0.0,dict(),dict(),set(),set(),set(),set()
+    
    ##Calculate node flow for ranking of signaling proteins
     (node_flow,comm_flow,total)=calculate_node_flow(open(output_file+'.txt','r').readlines(),mcf)#returns a dictionary of node flow
     
@@ -300,7 +312,8 @@ def process_output(output_file,source='S', sink='T', idfname='',debug=False,de_f
         #visualize
     if total==0.0:
         print 'No flow'
-        return total,node_flow,comm_flow,set(),set(),set()
+        return total,node_flow,comm_flow,set(),set(),set(),set()
+    
     phens,prots,tfs,mrnas=write_sif_file(output_file, source, sink,node_flow,comm_flow,debug,de_file,mcf)
             ##MODIFIED by SGOSLINE: added this to do identifer matching for the sif files
     

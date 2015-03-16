@@ -28,8 +28,10 @@ from collections import defaultdict
 #these modules do the rest:
 import parseinput_samnet as parseIn##handles input and file parsing and filtering
 import writefiles_samnet as wf #handles writing files to be run by ampl
+#import write_pyomo_files as wf ##2015 update to use PYOMO package instead of ampl
 import post_samnet as post ##handles post-processing of ampl results
 import tfnetwork_samnet as tfNetwork #handles transcriptional data
+import pyomoModel as pyMod
 
 fpath=os.path.dirname(os.path.abspath( __file__ ))
 print fpath
@@ -322,8 +324,7 @@ nn
                     indirect_weights[treat][x]=0.0##zero this weight so it's not tallied..
                     if len(diff_ex_vals)>0 and treat in diff_ex_vals.keys():
                         diff_ex_vals[treat][x]=0.0
-    print "how many proteinWeights are in interactome:"
-    print len(phenres)
+    print "%d proteinWeights are in interactome"%(len(phenres))
 
     count_phen=0
     count_indirect=0
@@ -364,8 +365,7 @@ nn
                 else:
                     direct_weights[treat][x]=0.0##zero it out so it's not totalled
 
-        print "how many direct (e.g. miRNA) weights are in network"
-        print len(directres)
+        print "%d many direct (e.g. miRNA) weights are in network"%(len(directres))
 
     ##the transcriptional data to be included in the graph -
     ##only the mRNA which is contained in the transcriptional network
@@ -374,7 +374,7 @@ nn
         for treat in mrna_weights.keys():
             if treat not in allcoms:
                 mrna_weights.pop(treat,None)
-                next
+                continue
             for x in mrna_weights[treat].keys():
                 if PPI_with_weights.has_node(x):
                     if x not in trares:
@@ -393,7 +393,7 @@ nn
         for treat in mrna_weights.keys():
             if treat not in allcoms:
                 mrna_weights.pop(treat,None)
-                next
+                continue
             #print '--mrna--'+treat
             for x in mrna_weights[treat].keys():
                 if graph_tr.has_node(x):
@@ -401,8 +401,7 @@ nn
                         trares.append(x)
                 else:
                     mrna_weights[treat][x]=0.0
-        print "how many genes are linked to the TFs in the transcriptional network"
-        print len(trares)
+        print "%d genes are linked to the TFs in the transcriptional network"%(len(trares))
 
     count_tra=0
     trasInInteractome=open(output+'ExprInInteractome.txt','w')    
@@ -422,7 +421,7 @@ nn
         network_inclusion_details.write(str(count_tra)+' Transcriptional mRNA nodes linked to TFs in interactome \n')
 
     #ADD SOURCE AND SINK TO PPI
-    
+
     #include S1 and T1 (renamed from S and T to avoid conflicts),
     #the transcriptional and the genetic data into the interactome
     #this operation is possible only if the transcriptional and the genetic sets are not empty
@@ -443,6 +442,9 @@ nn
         
         #connect transcriptional data (mRNA) to the sink and add the corresponding weights
         for treat in mrna_weights.keys():
+            if treat not in allcoms:
+                mrna_weights.pop(treat,None)
+                continue
             PPI_with_weights.add_edge(treat+'_sink',sink,{'weight':treat_weights[treat]})
             for mrna_node in mrna_weights[treat].keys():
                 weight = mrna_weights[treat][mrna_node]
@@ -501,10 +503,10 @@ nn
                          
 
         ##only add capacities on targets if 
-        if len(mrna_weights)>1:# and not doMCF: ##parameter not used for MCF
-            target_cap=True
-        else:
-            target_cap=False
+        #if len(mrna_weights)>1:# and not doMCF: ##parameter not used for MCF
+        #    target_cap=True
+        #else:
+        target_cap=False
         
         ##now add in hierarchical capacities if we didn't already do so
         if add_in_hier and len(node_caps)==0:
@@ -535,7 +537,7 @@ nn
                     else:
                         tmp_output=treat+'_ONLY_'+os.path.basename(output)
                         
-                    wf.write_all_files(PPI_with_weights,trares,phenres,directres,tmp_output,treat,treat+'_sink',cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+                    wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,tmp_output,treat,treat+'_sink',cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
                     sources.append(treat)
                     sinks.append(treat+'_sink')
                     single_comms.append(tmp_output)
@@ -543,32 +545,34 @@ nn
             print "Writing MCF version of SAMNet files"
             output+='multiComm'
 #            wf.write_mcf_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
-            wf.write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
-      #  else:
-#            wf.write_all_files(PPI_with_weights,trares,phenres,directres,output,source,sink,cap,gamma,solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
-
-       #     wf.write_all_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
+            datfile=wf.write_mcf_files(PPI_with_weights,trares,phenres,output,source,sink,cap,str(gamma),solver,usetargetcapacity=target_cap,diff_ex_vals=diff_ex_vals,de_cap=de_cap,node_caps=node_caps,debug=debug,sinkGamma=sinkGamma)##DEFAULT is to add target capacities if we're not using direct/indirect responses, this should be changed
         
         #execute loqo
         single_comms.append(output)
         sources.append(source)
         sinks.append(sink)
+
+        doAmpl=True
+        
         for i in range(len(single_comms)):
             out=single_comms[i]
             source=sources[i]
             sink=sinks[i]
-            cmd=os.path.join(ampl_path,'ampl')
-            args=out+".ampl"
-    #cmd='ampl '+ Dirname+gene+".ampl"
-            print 'Running '+solver+': '+time.asctime(time.localtime())
-            retcode = subprocess.call(cmd+' '+args,shell=True)
-            if retcode!=0:
-                nr=subprocess.call('ampl_lic stop',shell=True)
-                ##sometimes we have trouble getting license, try again
+            if doAmpl:
+                cmd=os.path.join(ampl_path,'ampl')
+                args=out+".ampl"
+                print 'Running '+solver+': '+time.asctime(time.localtime())
                 retcode = subprocess.call(cmd+' '+args,shell=True)
+                if retcode!=0:
+                    nr=subprocess.call('ampl_lic stop',shell=True)
+                    ##sometimes we have trouble getting license, try again
+                    retcode = subprocess.call(cmd+' '+args,shell=True)
 
-            #            os.system(cmd)
-            print 'Finished '+solver+': '+time.asctime(time.localtime())+' with return code '+str(retcode)
+                #            os.system(cmd)
+                print 'Finished '+solver+': '+time.asctime(time.localtime())+' with return code '+str(retcode)
+            else:
+                res=pyMod.loadAndRun(gamma,solver,datfile)
+                
         ##call the post processing module to update the files
             if os.path.exists(out+'.txt'):
                 if out==output: ##then we respect the original assignment
@@ -583,8 +587,6 @@ nn
                         noa='_symbol.noa'
             else:
                 print 'Flow was 0, no output file created' ##NEED ERROR PROCESSING HERE
-
-                
 
 
         if not debug:
@@ -608,14 +610,13 @@ nn
     #if either the transcriptional or the genetic set are empty, the program doesn't do anything
     else:
         print ""
-        print "empty phenotypic or transcriptional response"
-
+        print "Protein weights or mRNA weights are not conencted to interactome, try again."
+        return 0.0,[],[],[],[]
 
 
 def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=False,ismcf=True):
     '''
     takesa  list of edge attribute files and combines them into sif and eda file...
-    copied from ../chemoExpr/bin/compare_mcf_with_single.py
     Then modified to include a second sif file, this time with the results of a combined MCF/merged network
     Last argument collapses edges into a single edge, weighted by the fraction of commodities selecting that edge
     '''
@@ -626,38 +627,39 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
     
     final_mcf_node_type=['NodeType\n']
     final_mcf_node_flow=['Node Flow\n']
-    final_mcf_node_comm_flow=[]
+    final_mcf_node_comm_flow=[] #flow by original commodity
 
-
-    ##dictionaries to handle new flow values
-    node_flow_dict={}
-    ##need to create dictionary to hold all info
-    comm_flow_dict=defaultdict(dict)##indexed by gene, then commodity
+    ##now re-assign        
+    combined_mcf_node_flow=['Node Flow\n']
     
     ##also open original 5 files for combined
     if 'symbol' in filename_list[0]:
         sym='_symbol'
     else:
         sym=''
-#    if ismcf:
-#        mc='_mcfs'
-#    else:
-#        mc='_all'
 
+    #samnet output: 1 sif file, 2 edge attribute files, 3 node attribute files
     sif_output=orig_output+'_mcfs'+sym+'.sif'
     edge_type_output=orig_output+'_edge_type'+sym+'.eda'
     edge_comm_output=orig_output+'_edge_commodity'+sym+'.eda'
-    
+
     node_type_output=orig_output+'_node_type'+sym+'.noa'
     node_flow_output=orig_output+'_node_flow'+sym+'.noa'
     node_comm_output=orig_output+'_node_comm_flow'+sym+'.noa'
 
+    #first merge node attributes
 
-    ##dictionaries to handle existing flow values or counts if collapse_edges=T
-    combined_node_flow_dict={}
-    combined_comm_flow_dict=defaultdict(dict)
+    ##here are node attributes for existing files
+    orig_node_flow_dict=defaultdict(float)#original total flow
+    orig_comm_flow_dict=defaultdict(dict)#original per-commodity flow
+    orig_edge_flow_dict=defaultdict(float)
+    
+    ##here are the new files
+    new_node_flow_dict=defaultdict(float)
+    new_comm_flow_dict=defaultdict(dict)
+    new_edge_flow_dict=defaultdict(float)
 
-    ###check if files exist, then open them here
+    ##now read in existing files, if they exist
     if os.path.exists(sif_output):
         combined_mcf_sif=open(sif_output,'r').readlines()
     else:
@@ -666,56 +668,55 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
         
     if os.path.exists(edge_comm_output):
         combined_mcf_edge_comm=open(edge_comm_output,'r').readlines()
+        for row in combined_mcf_edge_comm[1:]:
+            ia,val=row.strip().split(' = ')
+            orig_edge_flow_dict[ia]=float(val)
     else:
         combined_mcf_edge_comm=['EdgeCommodity\n']
         print 'no file: '+edge_comm_output
         
     if os.path.exists(edge_type_output):
         combined_mcf_edge_type=open(edge_type_output,'r').readlines()
+        #no need to process in dictionary, just output again
     else:
         combined_mcf_edge_type=['Interaction Type\n']
     
         
     if os.path.exists(node_type_output):
         combined_mcf_node_type=open(node_type_output,'r').readlines()
+        #dont need to process by reading into dictionary
     else:
         combined_mcf_node_type=['NodeType\n']
         print "no file: "+node_type_output
         
-    if os.path.exists(node_flow_output):
-        combined_mcf_node_flow=open(node_flow_output,'r').readlines()
-        for row in combined_mcf_node_flow[1:]:
-            gene,val=row.strip().split(' = ')
-            combined_node_flow_dict[gene]=float(val)
-    else:
-        print "no file: "+node_flow_output
-            
-
-    ##now re-assign        
-    combined_mcf_node_flow=['Node Flow\n']
-
+    # if os.path.exists(node_flow_output):
+    #     combined_mcf_node_flow=open(node_flow_output,'r').readlines()
+    #     for row in combined_mcf_node_flow[1:]:
+    #         gene,val=row.strip().split(' = ')
+    #         orig_node_flow_dict[gene]=float(val)
+    # else:
+    #     print "no file: "+node_flow_output
+        
     ##get original flow data for each node
-    if os.path.exists(node_comm_output) and ismcf:
+    if os.path.exists(node_comm_output):
         combined_mcf_node_comm_flow=open(node_comm_output,'r').readlines()
+        #get all the commodities from the header
         comms=[s.strip() for s in combined_mcf_node_comm_flow[0].split('\t')[1:]]
-        print comms
+        print ','.join(comms)
+        #collect all node flow values for each commodity
         for row in combined_mcf_node_comm_flow[1:]:
             arr=row.strip().split('\t')
             commvals={}
             for c in range(len(comms)):
-                combined_comm_flow_dict[arr[0]][comms[c]]=arr[c+1]
-#    else:
-#        combined_mcf_node_comm_flow=[]
+                orig_comm_flow_dict[arr[0]][comms[c]]=float(arr[c+1])
+            orig_node_flow_dict[arr[0]]=sum(orig_comm_flow_dict[arr[0]].values())
+                
     
-    #list of commodities processed, use this for counts if collapsing
-    comlist=[]
-
-    #create edge/flow dictionaries instead of writing to file
+    #get combined flow
     sif_file_list=[]
-    edge_comm_file_dict={}
-    edge_type_file_dict={}
-    
-    for f in filename_list:
+
+    perturb_list=[]
+    for f in filename_list: #these are all edge commodity eda files
         ##break up filename
         if not os.path.exists(f):
             print 'File does not exist, likely no flow for this network:\n'+f
@@ -724,63 +725,94 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
         f=os.path.basename(f)
         if 'Yeast' in f:
             commname=re.sub('Yeast','',f.split('_RN_treatment_ONLY')[0])
-        else:
+        elif 'REMOVED' in f:
             commname=f.split('REMOVED')[0].split('_')[-2]
-        comlist.append(commname)
-        print 'Processing commodity '+commname
-        flowvals=recalc_node_flow(rows,collapse_edges)
-#        flowlist=[]
-        typelist=[]        
+        else:
+            commname=f.split('RANDOM')[1].split('_')[0]
+        #collect a list of all perturbations
+        perturb_list.append(commname)
+        print 'Processing perturbation '+commname
+        
+        flowvals,commflowvals=recalc_node_flow(rows,False)
+        #now for each row account for for flow in each edge
+        commlist=set()
+        nodeflows=set() #keep track of all nodes for which we have flow, so we dont double count
         for row in rows[1:]:
             #print row
-            p1,i_type,p2,eq,flow=row.strip().split()
+            arr=row.strip().split()
+            if len(arr)!=5:
+                #this is due to JUN D!
+                continue
+            p1=arr[0]
+            p2=arr[2]
+            flow=arr[4]
+            i_type=arr[1]
+#            p1,i_type,p2,eq,flow=row.strip().split()
             i_type=re.sub('\(','',re.sub('\)','',i_type))
-            if i_type not in typelist:
-                typelist.append(i_type)
+            commlist.add(i_type)
 
             if collapse_edges and ismcf:
                 commname=i_type
+            orig_commname=re.sub('_altered','',commname)
+            
             #add edge to list
             edge=p1+'\t'+commname+'\t'+p2+'\n'
             if edge not in sif_file_list:
                # print edge
                 sif_file_list.append(edge)
 
-            ##now add counts attributes
+            ##now add edge flow probability
             edge_a=p1+' ('+commname+') '+p2
-            if edge_a not in edge_comm_file_dict.keys():
-                edge_comm_file_dict[edge_a]=1.0
-            else:
-                edge_comm_file_dict[edge_a]=edge_comm_file_dict[edge_a]+1.0
+            if edge_a not in orig_edge_flow_dict.keys() or orig_edge_flow_dict[edge_a]<float(flow):
+                new_edge_flow_dict[edge_a]+=1.0
 
-            if edge_a not in edge_type_file_dict.keys():
-                if collapse_edges:
-                    edge_type_file_dict[edge_a]=flow.strip()
-                else:
-                    edge_type_file_dict[edge_a]=re.sub('\(','',re.sub('\)','',i_type))
+            # #add edge type, removed for now
+            # if edge_a not in new_edge_type_dict.keys():
+            #     if collapse_edges:
+            #         new_edge_type_dict[edge_a]=flow.strip()
+            #     else:
+            #         new_edge_type_dict[edge_a]=re.sub('\(','',re.sub('\)','',i_type))
+
+
+            #if p2 in node_flow_dict.keys():
+
+            #now work on node flow values
+            #node flow across commodities
+            if p2 not in orig_node_flow_dict.keys() or float(flowvals[p2])>float(orig_node_flow_dict[p2]):
+              #  if p2 in ['NR6A1','TEAD4','PBX3','HMGA2']:
+              #      print p2+' flow: '+str(flowvals[p2])+', orig flow: '+str(orig_node_flow_dict[p2])
+                if p2 not in nodeflows:
+                    new_node_flow_dict[p2]+=1
+                    nodeflows.add(p2)
             
-            #            if p2 not in flowlist:
-            #                flowlist.append(p2)
-            if p2 in node_flow_dict.keys():
-                node_flow_dict[p2]+=flowvals[p2]
-            else:
-                node_flow_dict[p2]=flowvals[p2]
-
-            if p2 in combined_node_flow_dict.keys():
-                combined_node_flow_dict[p2]+=flowvals[p2]
-            else:
-                combined_node_flow_dict[p2]=flowvals[p2]
-
-            ##now do the commodity flow
-            if p2 in comm_flow_dict.keys() and commname in comm_flow_dict[p2].keys():
-                comm_flow_dict[p2][commname]+=flowvals[p2]
-            else:
-                comm_flow_dict[p2][commname]=flowvals[p2]
-            if p2 in combined_comm_flow_dict.keys() and commname+'_altered' in combined_comm_flow_dict[p2].keys():
-                combined_comm_flow_dict[p2][commname+'_altered']+=flowvals[p2]
-            else:
-                combined_comm_flow_dict[p2][commname+'_altered']=flowvals[p2]
-
+            #node flow for each commodity
+            #first check to see if the original node/commname combination are in the original networ,
+            #if not, they are already greater
+            if p2 not in orig_comm_flow_dict.keys() or orig_commname not in orig_comm_flow_dict[p2].keys():
+                #have we already measured this protein/comm combo before?? if so just increment
+                if p2 in new_comm_flow_dict.keys() and orig_commname in new_comm_flow_dict[p2].keys():
+                    new_comm_flow_dict[p2][orig_commname]+=1
+                    #let's add the same value for the 'altered' commodity?
+                    new_comm_flow_dict[p2][orig_commname+'_altered']+=1
+                else:
+                #otherwise just initialize
+                    new_comm_flow_dict[p2][orig_commname]=1
+                    #let's add the same value for the 'altered' commodity?
+                    new_comm_flow_dict[p2][orig_commname+'_altered']=1
+            elif orig_commname in commflowvals[p2].keys() and float(commflowvals[p2][orig_commname])>float(orig_comm_flow_dict[p2][orig_commname]):
+                if p2 in new_comm_flow_dict.keys() and orig_commname in new_comm_flow_dict[p2].keys():
+                    new_comm_flow_dict[p2][orig_commname]+=1
+                    #let's add the same value for the 'altered' commodity?
+                    new_comm_flow_dict[p2][orig_commname+'_altered']+=1
+                else:
+                    new_comm_flow_dict[p2][orig_commname]=1
+                    #let's add the same value for the 'altered' commodity?
+                    new_comm_flow_dict[p2][orig_commname+'_altered']=1
+                    
+            ##sanity check here....        
+#            if p2 in ['NR6A1','TEAD4','PBX3','HMGA2'] and orig_commname in commflowvals[p2].keys() and orig_commname in orig_comm_flow_dict[p2].keys():
+#                print p2+' flow in '+orig_commname+': '+str(commflowvals[p2][orig_commname])+', orig flow: '+str(orig_comm_flow_dict[p2][orig_commname])
+            
 #            final_mcf_node_flow.append(p2+' = '+str(flowvals[p2])+'\n')
             node_type_list=[]
             if p2 not in node_type_list:
@@ -809,8 +841,13 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
 
 
     #first handle node flow commodities
-    final_mcf_node_flow.extend([node+' = '+str(node_flow_dict[node])+'\n' for node in node_flow_dict.keys()])
-    combined_mcf_node_flow.extend([node+' = '+str(combined_node_flow_dict[node])+'\n' for node in combined_node_flow_dict.keys()])
+    allnodes=set(orig_node_flow_dict.keys())|set(new_node_flow_dict.keys())
+    for node in allnodes:
+        if node in new_node_flow_dict.keys():
+            final_mcf_node_flow.extend(node+' = '+str(float(new_node_flow_dict[node])/float(len(filename_list)))+'\n')
+        else:
+            final_mcf_node_flow.extend(node+' = 0.0\n')
+            
 
     ##then handle edge files
     ##add edge to sif files          
@@ -820,43 +857,52 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
         vals[1]=vals[1]+'_altered'
        #this seems wrong vals[1]=vals[2]+'_altered'
         combined_mcf_sif.append('\t'.join(vals))
-    
+
+    all_edges=set(new_edge_flow_dict.keys())| set(orig_edge_flow_dict.keys())
     #add edge to attribute files
-    for edge_a in edge_comm_file_dict.keys():
-        cv=edge_comm_file_dict[edge_a]/len(comlist)
-        et=edge_type_file_dict[edge_a]
+    for edge_a in all_edges:
+        if(edge_a) in new_edge_flow_dict.keys():
+            cv=new_edge_flow_dict[edge_a]/len(perturb_list)
+        else:
+            cv=0.0
+#        et=edge_type_file_dict[edge_a]
         final_mcf_edge_comm.append(edge_a+' = '+str(cv)+'\n')
-        final_mcf_edge_type.append(edge_a+' = '+et+'\n')
+        #final_mcf_edge_type.append(edge_a+' = '+et+'\n')
         
         edge_arr=edge_a.split()
         ##replaced arr with edge_arr below, will this break actual mcf code?  seems like a bug
         edge_arr[1]='('+re.sub('\(','',re.sub('\)','',edge_arr[1]))+'_altered)'
         combined_mcf_edge_comm.append(' '.join(edge_arr)+' = '+str(cv)+'\n')
-        combined_mcf_edge_type.append(' '.join(edge_arr)+' = '+et+'\n')
-    
+#        combined_mcf_edge_type.append(' '.join(edge_arr)+' = '+et+'\n')
+    #print new_comm_flow_dict
+
     ##now handle node flow matrix file
-    comms=comlist
+    comms=perturb_list
     if collapse_edges and ismcf:
-        comms=typelist
+        comms=commlist
     final_mcf_node_comm_flow=['Node\t'+'\t'.join(comms)+'\n']
-    for node in comm_flow_dict.keys():
+    for node in allnodes:
         row=node
         for comm in comms:
-            if comm in comm_flow_dict[node].keys():
-                row+='\t'+str(comm_flow_dict[node][comm])
+            if comm in new_comm_flow_dict[node].keys():
+                row+='\t'+str(float(new_comm_flow_dict[node][comm])/float(len(filename_list)))
+            elif comm+'_altered' in new_comm_flow_dict[node].keys():
+                row+='\t'+str(float(new_comm_flow_dict[node][comm+'_altered'])/float(len(filename_list)))
             else:
                 row+='\t0'
         final_mcf_node_comm_flow.append(row+'\n')
 
     ##now make node flow commodity file for combined
-    combined_comms=comms+[c+'_altered' for c in comms]
+    combined_comms=list(comms)+[c+'_altered' for c in comms]
     print combined_comms
     combined_mcf_node_comm_flow=['Node\t'+'\t'.join(combined_comms)+'\n']
-    for node in combined_comm_flow_dict.keys():
+    for node in allnodes:
         row=node
-        for com in combined_comms:
-            if com in combined_comm_flow_dict[node].keys():
-                row+='\t'+str(combined_comm_flow_dict[node][com])
+        for com in list(comms)+list(comms):##just repeat twice
+            if com in new_comm_flow_dict[node].keys():
+                row+='\t'+str(float(new_comm_flow_dict[node][com])/float(len(filename_list)))
+            elif com+'_altered' in new_comm_flow_dict[node].keys():
+                row+='\t'+str(float(new_comm_flow_dict[node][com+'_altered'])/float(len(filename_list)))
             else:
                 row+='\t0'
         combined_mcf_node_comm_flow.append(row+'\n')
@@ -874,10 +920,10 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
   #      os.system('mkdir combined_graphs')
     open(newfname,'w').writelines(final_mcf_sif)
     open(newedaname,'w').writelines(final_mcf_edge_comm)
-    open(newtypename,'w').writelines(final_mcf_node_type)    
+    open(newtypename,'w').writelines(combined_mcf_node_type)    
     open(newflowname,'w').writelines(final_mcf_node_flow)
     open(newnodeflowname,'w').writelines(final_mcf_node_comm_flow)
-    open(new_type_edaname,'w').writelines(final_mcf_edge_type)
+    open(new_type_edaname,'w').writelines(combined_mcf_edge_type)
 
     ##now write combined files
     comb_newfname=combined_output+'_mcfs'+sym+'.sif'
@@ -891,21 +937,33 @@ def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=
     open(comb_newedaname,'w').writelines(combined_mcf_edge_comm)
     open(comb_type_edaname,'w').writelines(combined_mcf_edge_type)
     open(comb_newtypename,'w').writelines(combined_mcf_node_type)    
-    open(comb_newflowname,'w').writelines(combined_mcf_node_flow)
+#    open(comb_newflowname,'w').writelines(combined_mcf_node_flow)
+    open(comb_newflowname,'w').writelines(final_mcf_node_flow)
     open(comb_newnodeflowname,'w').writelines(combined_mcf_node_comm_flow)
+#    open(comb_newnodeflowname,'w').writelines(combined_mcf_node_comm_flow)
 
 def recalc_node_flow(eda_rows,not_flow=True):
-    flowdict={}
+    commflowdict=defaultdict(dict)
+    flowdict=defaultdict(float)
     for row in eda_rows:
-      #  print row
-        p1,itype,p2,eq,flow=row.strip().split()
+        arr=row.strip().split()
+        if len(arr)!=5:
+            print row
+            next
+        p1=arr[0]
+        p2=arr[2]
+        ia=re.sub('\(','',re.sub('\)','',arr[1]))
+#        print ia
+        flow=arr[4]
+#            p1,itype,p2,eq,flow=
         if not_flow:
             flowdict[p2]=1.0
-        elif p2 not in flowdict.keys():
-            flowdict[p2]=float(flow)
+        flowdict[p2]+=float(flow)
+        if ia in commflowdict[p2].keys():
+            commflowdict[p2][ia]+=float(flow)
         else:
-            flowdict[p2]+=float(flow)
-    return flowdict
+            commflowdict[p2]={ia:float(flow)}
+    return flowdict,commflowdict
 
 
 if __name__=='__main__':

@@ -207,7 +207,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
         all_caps[i]=total_cap
         #        print 'Source cap to '+i+':'+str(total_cap)
     for i in all_caps.keys():
-        file.write(source+' \"'+i+'\"\t'+str(float(all_caps[i]/sum(all_caps.values())))+'\n')
+        file.write(source+' \"'+i+'\"\t'+str(float(all_caps[i]/max(0.000001,sum(all_caps.values()))))+'\n')
 
     ##now add capacities for direct edges, if they exist...
     for i in directres:

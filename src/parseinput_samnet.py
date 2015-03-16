@@ -223,7 +223,7 @@ def get_ppi_network(networkfile,doUpper=False):
     try:
         ppinet=pickle.load(open(networkfile,'rU'))
         ##now test for object type
-        if type(ppinet) is networkx.DiGraph:
+        if type(ppinet) is networkx.Graph or type(ppinet) is networkx.DiGraph:
             print 'Unpickled is networkX, returning'
         else:
             print 'Pickled object unknown, returning empty digraph'

@@ -156,7 +156,7 @@ def get_weights_mRNA_sink(tradatadict, foldtraOrPValue='foldchange',upOrDown='',
         weights_sink = {}
         for item in tradatadict[k]:
             fields = item.strip('\r\n').split()
-            print fields
+            #print fields
         #mRNA name
             mrna_name = fields[0].strip()
 
@@ -405,7 +405,7 @@ def make_tf_data_into_network(tf_file,addmrna=True,expressed_prot_list=[],doUppe
         if type(tfobj) is dict:
             print 'Unpickled is matrix file, creating network'
             tfnet=get_transcriptional_network_from_tgm(pickle.load(open(tf_file,'rU')),addmrna=addmrna,expressed_prot_list=expressed_prot_list,doUpper=doUpper)
-        elif type(tfobj) is networkx.DiGraph:
+        elif type(tfobj) is networkx.Graph or type(tfobj) is networkx.DiGraph:
             print 'Unpickled is networkX, returning'
             tfnet=tfobj
         else:
