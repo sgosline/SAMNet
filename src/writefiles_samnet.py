@@ -46,8 +46,10 @@ def write_mcf_changeflow(wholename,gamma,revGamma=False):
     file.write('set source;\n')
     file.write('set sink;\n')
     file.write('set commodities;\n') ##added this
-    file.write('set initnodes = source union proteins;\n')    
-    file.write('set endnodes = sink union proteins;\n')
+    file.write('set initnodes;\n')    ##need to add these
+    file.write('set endnodes;\n') ##and these
+    file.write('set termnodes  = initnodes union endnodes;\n') #created this
+    file.write('set interiornodes = proteins diff termnodes;\n') #and this
     file.write('set sourcesink = source union sink;\n')
     file.write('set nodes = sourcesink union proteins;\n')
     file.write('set interactions within {proteins cross proteins};\n')
@@ -57,6 +59,7 @@ def write_mcf_changeflow(wholename,gamma,revGamma=False):
     file.write('set source_interactions{commodities} within {i in source,j in proteins};\n')
 
     file.write('param cost {all_interactions,commodities} >=0;\n') ##every interaction has a cost
+    
     file.write('param capacity {all_interactions} >=0;\n') ##every interaction has a capacity, most are 1
     file.write('var X {all_interactions,commodities} >=0;\n')
     file.write('minimize Total_Cost:\n')
@@ -65,8 +68,12 @@ def write_mcf_changeflow(wholename,gamma,revGamma=False):
         file.write('sum{k in commodities}sum{(i,j) in interactions}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in source_interactions[k]}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in sink_interactions[k]}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in sink_interactions[k]}'+gamma+'*X[i,j,k];\n')
     else:
         file.write('sum{k in commodities}sum{(i,j) in interactions}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in source_interactions[k]}-log(cost[i,j,k])*X[i,j,k] + sum{k in commodities}sum{(i,j) in sink_interactions[k]}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in source_interactions[k]}'+gamma+'*X[i,j,k];\n')
+#        file.write('sum{k in commodities}sum{(i,j) in all_interactions}-log(cost[i,j,k])*X[i,j,k] - sum{k in commodities}sum{(i,j) in source_interactions[k]}'+gamma+'*X[i,j,k];\n')
 #    file.write('sum{(i,j) in interactions,k in commodities}-log(cost[i,j,k])*X[i,j,k]-sum{(i,j) in source_interactions,k in commodities}'+gamma+'*X[i,j,k];\n')
-    file.write('subject to Kirkoff {k in proteins,c in commodities}: sum {(i,k) in all_interactions} X[i,k,c]=sum{(k,j) in all_interactions} X[k,j,c];\n')
+#    file.write('subject to Kirkoff {k in proteins,c in commodities}: sum {(i,k) in all_interactions} X[i,k,c]=sum{(k,j) in all_interactions} X[k,j,c];\n')
+    file.write('subject to Interior_Kirkoff {k in interiornodes,c in commodities}: sum {(i,k) in interactions} X[i,k,c]=sum{(k,j) in interactions} X[k,j,c];\n')
+    file.write('subject to Source_Kirkoff {k in initnodes,c in commodities}: sum{(i,k) in source_interactions[c]} X[i,k,c]=sum{(k,j) in interactions} X[k,j,c];\n')
+    file.write('subject to Sink_Kirkoff {k in endnodes,c in commodities}: sum{(i,k) in interactions} X[i,k,c]=sum{(k,j) in sink_interactions[c]} X[k,j,c];\n')
     file.write('subject to sourcesinkcond{k in commodities}: sum{(i,j) in source_interactions[k]} X[i,j,k]=sum{(i,j) in sink_interactions[k]} X[i,j,k];\n')
     file.write('subject to multi {(i,j) in all_interactions}: sum {k in commodities}X[i,j,k]<=capacity[i,j];\n')##add constraint here
     file.close()
@@ -113,6 +120,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     #now collect dictionary of commodity weights
     commodity_source_weights=collections.defaultdict(dict)
     commodity_direct_weights=collections.defaultdict(dict)
+
     for c in commodity_names:
         corig=c.strip('\"')
         for neigh in big_PPI.successors(corig+suff):
@@ -144,7 +152,8 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     file.write('set source := '+source+';\n')
     file.write('set sink := '+sink+';\n')
     file.write('set commodities := '+' '.join(commodity_names)+';\n')
-    
+    file.write('set initnodes :='+' '.join(['"'+a+'"' for a in phenres])+';\n')
+    file.write('set endnodes :='+' '.join(['"'+a+'"' for a in trares])+';\n')
     file.write('set interactions :=')
     #get all edges here
     for two_edge_nodes in big_PPI.edges():
@@ -255,7 +264,7 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
     file.write(';\n')
 
     #COSTS
-    file.write('\nparam cost :=\n')
+    file.write('\nparam cost default 0 :=\n') ##default to 0 to ensure that unselected edges are not used
     #first add costs for source and sink edges, since those vary based on commodity
     #make sure each commodity sums to 1...
     #added weighting here to weight by commodity
@@ -271,12 +280,21 @@ def write_mcf_datfile(big_PPI,trares,phenres,outputfilename,source,sink,cap,uset
 
     ##normalize all direct weights separately
     all_direct_weights=float(sum([sum(commodity_direct_weights[c].values()) for c in commodity_direct_weights.keys()]))
-    print 'All direct source weights '+str(all_direct_weights)
-    
-    for c in commodity_source_weights.keys():
-        for node in commodity_source_weights[c]:
-            file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_source_weights[c][node]/all_source_weights)+'\n')
+    if(all_direct_weights)>0.0:
+        print 'All direct source weights '+str(all_direct_weights)
 
+    all_source_nodes=set()
+    [all_source_nodes.update(commodity_source_weights[k].keys()) for k in commodity_source_weights.keys()]
+#
+    for c in commodity_source_weights.keys():
+        for node in commodity_source_weights[c]:    
+#        for node in all_source_nodes:
+#            if node in commodity_source_weights[c].keys():
+            file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_source_weights[c][node]/all_source_weights)+'\n')
+#            else:
+#                print 'Node '+node+' is not connected to Source in commodity '+c+', zeroing'
+#                file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(0.0)+'\n')
+                
     for c in commodity_direct_weights.keys():
         for node in commodity_direct_weights[c]:
             file.write('\"'+source+'\" \"'+node+'\" \"'+c+'\" '+str(commodity_direct_weights[c][node]/all_direct_weights)+'\n')

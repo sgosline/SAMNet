@@ -31,7 +31,7 @@ import writefiles_samnet as wf #handles writing files to be run by ampl
 #import write_pyomo_files as wf ##2015 update to use PYOMO package instead of ampl
 import post_samnet as post ##handles post-processing of ampl results
 import tfnetwork_samnet as tfNetwork #handles transcriptional data
-import pyomoModel as pyMod
+#import pyomoModel as pyMod
 
 fpath=os.path.dirname(os.path.abspath( __file__ ))
 print fpath
@@ -294,8 +294,8 @@ nn
     else:
         idfname=os.path.join(id_directory,'humanUniprotHugoEntryMapping.pkl')
     if updateIds.lower()=='none':
-	idfname=''
-	idmap={}
+        idfname=''
+        idmap={}
     else:
         idmap=pickle.load(open(idfname,'r'))
 
@@ -472,14 +472,8 @@ nn
                     if weight!=0.0:
                     #    print treat,prot,str(weight)
                         PPI_with_weights.add_edge(treat,prot,{'weight':weight})
-        
 
 
-#        if not doMCF:# and len(directres)==0:
-            ##this means that we're running the original RN
-#            source=indirect_weights.keys()[0]
-#        if len(mrna_weights)==1:
-#            sink=mrna_weights.keys()[0]+'_sink'
 
 
         ##wait to add tf-> mrna weights until we know which tfs are in the network
@@ -588,7 +582,7 @@ nn
             else:
                 print 'Flow was 0, no output file created' ##NEED ERROR PROCESSING HERE
 
-
+#        debug=True
         if not debug:
             print 'Now removing .dat and .txt files to save space'
             for out in single_comms:
