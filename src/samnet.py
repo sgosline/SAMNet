@@ -380,11 +380,13 @@ nn
                     if x not in trares:
                         trares.append(x)
 
-                ##commented this on 2012-12-06 -- 
-                elif PPI_with_weights.has_node(re.sub('mrna','',x)):
-                    PPI_with_weights.add_edge(re.sub('mrna','',x),x,weight=0.00001)
-                    if x not in trares:
-                        trares.append(x)
+                ##commented this on 2012-12-06 -- then it became uncommented!!!
+                ##Why did I do this? this would allow direct weigths to sink
+                ##re-comment on 2015-06-02
+                #elif PPI_with_weights.has_node(re.sub('mrna','',x)):
+                #    PPI_with_weights.add_edge(re.sub('mrna','',x),x,weight=0.00001)
+                #    if x not in trares:
+                #        trares.append(x)
                 else:
                     mrna_weights[treat][x]==0.0
         print "how many direct sink weights are linked to the protein interaction network"
@@ -581,6 +583,7 @@ nn
                         noa='_symbol.noa'
             else:
                 print 'Flow was 0, no output file created' ##NEED ERROR PROCESSING HERE
+                return 0.0,{},{},{},{} #set(),set(),set(),set()
 
 #        debug=True
         if not debug:
@@ -600,19 +603,24 @@ nn
             for to in single_comms:
                 retcode=subprocess.call('rm '+to+'*')
 
-        return flow,phens,prots,tfs,mrnas
+        ##TODO: use try/catch to speed up
+        ph_flow=dict([(p,node_flow[p]) for p in phens if p in node_flow.keys()])
+        pr_flow=dict([(p,node_flow[p]) for p in prots if p in node_flow.keys()])
+        tf_flow=dict([(p,node_flow[p]) for p in tfs if p in node_flow.keys()])
+        mr_flow=dict([(p,node_flow[p]) for p in mrnas if p in node_flow.keys()])
+        return flow,ph_flow,pr_flow,tf_flow,mr_flow  #phens,prots,tfs,mrnas
     #if either the transcriptional or the genetic set are empty, the program doesn't do anything
     else:
         print ""
-        print "Protein weights or mRNA weights are not conencted to interactome, try again."
-        return 0.0,[],[],[],[]
+        print "Protein weights or mRNA weights are not connected to interactome, try again."
+        return 0.0,{},{},{},{} #set(),set(),set(),set()
 
 
-def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=False,ismcf=True):
+def combine_single_flows_to_make_multi(filename_list,orig_output,collapse_edges=False,ismcf=True,countflow=False):
     '''
     takesa  list of edge attribute files and combines them into sif and eda file...
     Then modified to include a second sif file, this time with the results of a combined MCF/merged network
-    Last argument collapses edges into a single edge, weighted by the fraction of commodities selecting that edge
+    ismcf argument collapses edges into a single edge, weighted by the fraction of commodities selecting that edge
     '''
     #create all 5 files
     final_mcf_sif=[]

@@ -170,7 +170,7 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             attrfile1.write(prot1+' (pp) '+prot2+' = '+flow+'\n')
             attrfile5.write(prot1+' ('+comm+') '+prot2+' = '+flow+'\n')
             attrfile6.write(prot1+' ('+comm+') '+prot2+' = pp\n')
-#            other_prots.add(prot1)
+            other_prots.add(prot1)
             other_prots.add(prot2)
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
@@ -201,7 +201,8 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             if prot2 not in flows and prot2 in node_flow.keys():
                 attrfile3.write(prot2+' = '+str(node_flow[prot2])+'\n')
                 flows.add(prot2)
-	elif prot2==sink and 'mrna' not in prot1:
+                
+        elif prot2==sink and 'mrna' not in prot1:
             tfs.add(prot1)
 
       #  elif prot2==sink and 'treatment' not in prot1::
@@ -212,6 +213,9 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
     #now go through all proteins in all sets and add attribute
     #first, remove proteins from protein set if they are in tfs
     for p in tfs:
+        if p in other_prots:
+            other_prots.remove(p)
+    for p in phens:
         if p in other_prots:
             other_prots.remove(p)
     allprots=set()
@@ -231,6 +235,8 @@ def write_sif_file(wholename, source, sink,node_flow,comm_flow,debug=False, de_f
             else:
                 histone=''
             attrstring+=histone+'transcriptionfactor'
+        if prot in other_prots:
+            attrstring+='protein' ##this just makes sure that we have a name for it in case a node appeasr twice
         if prot in mrnas:
             attrstring+='mrna'
         if prot in phens:
@@ -267,6 +273,9 @@ def calculate_node_flow(lines,mcf):
     for l in lines:
         l=re.split('\t',l.strip())
         ind=re.sub('mrna','',l[1])
+        if 'JUN D' in ind:
+           # print ind
+            ind=re.sub('JUN D','JUND',ind)
         if float(l[find].strip())==0.0:
             continue
         if ind in node_flow.keys():
